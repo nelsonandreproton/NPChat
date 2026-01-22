@@ -208,6 +208,14 @@ SYSTEM_PROMPT = """Your custom system prompt..."""
 RAG_PROMPT_TEMPLATE = """Your custom RAG template..."""
 ```
 
+## Security Considerations
+
+- **API Binding**: By default, the API binds to `127.0.0.1` (localhost only). Change to `0.0.0.0` in `src/config.py` if external access is needed.
+- **CORS**: Configured for localhost Streamlit access. Update `src/api/main.py` with your domain for production.
+- **No Secrets**: Uses local Ollama - no API keys stored. If adding external APIs, use environment variables via `.env`.
+- **Input Validation**: All API inputs validated via Pydantic schemas.
+- **SQL**: All database queries use parameterized statements (no SQL injection).
+
 ## License
 
 MIT License

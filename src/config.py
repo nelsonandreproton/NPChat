@@ -34,7 +34,9 @@ class Config:
     collection_name: str = "nearpartner_knowledge"
 
     # API settings
-    api_host: str = "0.0.0.0"
+    # Use 127.0.0.1 for local-only access (more secure)
+    # Change to 0.0.0.0 if you need external network access
+    api_host: str = "127.0.0.1"
     api_port: int = 8000
 
     def __post_init__(self):
