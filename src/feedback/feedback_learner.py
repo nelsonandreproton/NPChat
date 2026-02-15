@@ -10,7 +10,7 @@ Implements:
 import sqlite3
 import json
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple
 from ..config import config
 
@@ -149,7 +149,7 @@ class FeedbackLearner:
                         positive_count = positive_count + 1,
                         last_updated = ?
                     WHERE chunk_id = ?
-                """, (adjustment, datetime.utcnow().isoformat(), chunk_id))
+                """, (adjustment, datetime.now(timezone.utc).isoformat(), chunk_id))
             else:
                 cursor.execute("""
                     UPDATE chunk_adjustments
@@ -157,7 +157,7 @@ class FeedbackLearner:
                         negative_count = negative_count + 1,
                         last_updated = ?
                     WHERE chunk_id = ?
-                """, (adjustment, datetime.utcnow().isoformat(), chunk_id))
+                """, (adjustment, datetime.now(timezone.utc).isoformat(), chunk_id))
         else:
             # Insert new
             cursor.execute("""
@@ -169,7 +169,7 @@ class FeedbackLearner:
                 adjustment,
                 1 if is_positive else 0,
                 0 if is_positive else 1,
-                datetime.utcnow().isoformat()
+                datetime.now(timezone.utc).isoformat()
             ))
 
         conn.commit()
@@ -284,7 +284,7 @@ class FeedbackLearner:
                 INSERT INTO flagged_queries
                 (query, query_hash, negative_count, flag_reason, status, created_at)
                 VALUES (?, ?, 1, NULL, 'monitoring', ?)
-            """, (query, query_hash, datetime.utcnow().isoformat()))
+            """, (query, query_hash, datetime.now(timezone.utc).isoformat()))
 
             conn.commit()
             conn.close()
@@ -347,7 +347,7 @@ class FeedbackLearner:
             UPDATE flagged_queries
             SET status = ?, resolved_at = ?
             WHERE query_hash = ?
-        """, (resolution, datetime.utcnow().isoformat(), query_hash))
+        """, (resolution, datetime.now(timezone.utc).isoformat(), query_hash))
 
         conn.commit()
         conn.close()
@@ -383,7 +383,7 @@ class FeedbackLearner:
         row = cursor.fetchone()
 
         chunks_json = json.dumps(successful_chunk_ids)
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         if row:
             # Update existing

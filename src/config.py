@@ -22,9 +22,9 @@ class Config:
     llm_model: str = "gemma2:2b"  # Faster on CPU
     embedding_model: str = "nomic-embed-text"
 
-    # Chunking settings
-    chunk_size: int = 600  # tokens
-    chunk_overlap: int = 100  # tokens
+    # Chunking settings (in characters; ~1200 chars ≈ 300-400 tokens)
+    chunk_size: int = 1200
+    chunk_overlap: int = 200
 
     # Retrieval settings
     top_k: int = 3  # Number of chunks to retrieve (less = faster)

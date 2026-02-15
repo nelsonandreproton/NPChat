@@ -27,11 +27,30 @@ OUTPUT_FILE = "nearpartner_company_pages.json"
 
 # Company pages to scrape with their categories
 COMPANY_PAGES = [
+    # Homepage
+    {
+        "url": "https://www.nearpartner.com/",
+        "category": "About",
+        "title_override": "Near Partner - Homepage"
+    },
+
     # Why Near Partner
     {
         "url": "https://www.nearpartner.com/why-near-partner/",
         "category": "About",
         "title_override": "Why Choose Near Partner"
+    },
+
+    # About / Team
+    {
+        "url": "https://www.nearpartner.com/about/",
+        "category": "About",
+        "title_override": "About Near Partner"
+    },
+    {
+        "url": "https://www.nearpartner.com/team/",
+        "category": "About",
+        "title_override": "Near Partner Team"
     },
 
     # Services
@@ -54,6 +73,38 @@ COMPANY_PAGES = [
         "url": "https://www.nearpartner.com/risk-sharing-model/",
         "category": "Services",
         "title_override": "Risk Sharing Model"
+    },
+    {
+        "url": "https://www.nearpartner.com/ai-solutions/",
+        "category": "Services",
+        "title_override": "AI Solutions"
+    },
+    {
+        "url": "https://www.nearpartner.com/digital-transformation/",
+        "category": "Services",
+        "title_override": "Digital Transformation"
+    },
+
+    # Technologies / Partners
+    {
+        "url": "https://www.nearpartner.com/technologies/",
+        "category": "Technologies",
+        "title_override": "Technologies & Partners"
+    },
+    {
+        "url": "https://www.nearpartner.com/partners/",
+        "category": "Technologies",
+        "title_override": "Technology Partners"
+    },
+    {
+        "url": "https://www.nearpartner.com/outsystems/",
+        "category": "Technologies",
+        "title_override": "OutSystems Development"
+    },
+    {
+        "url": "https://www.nearpartner.com/mendix/",
+        "category": "Technologies",
+        "title_override": "Mendix Development"
     },
 
     # Resources
@@ -78,11 +129,33 @@ COMPANY_PAGES = [
         "title_override": "Case Studies"
     },
 
-    # Culture
+    # Culture & Values
     {
         "url": "https://www.nearpartner.com/culture/",
         "category": "Culture",
         "title_override": "Near Partner Culture & Values"
+    },
+    {
+        "url": "https://www.nearpartner.com/careers/",
+        "category": "Culture",
+        "title_override": "Careers at Near Partner"
+    },
+    {
+        "url": "https://www.nearpartner.com/jobs/",
+        "category": "Culture",
+        "title_override": "Job Openings"
+    },
+
+    # Contact
+    {
+        "url": "https://www.nearpartner.com/contact/",
+        "category": "Contact",
+        "title_override": "Contact Near Partner"
+    },
+    {
+        "url": "https://www.nearpartner.com/contact-us/",
+        "category": "Contact",
+        "title_override": "Contact Us"
     },
 ]
 
@@ -260,14 +333,19 @@ def main():
 
     for i, page_info in enumerate(pages_to_scrape, 1):
         url = page_info["url"]
-        print(f"\n[{i}/{len(COMPANY_PAGES)}] {page_info['category']}: {page_info.get('title_override', url)}")
+        print(f"\n[{i}/{len(pages_to_scrape)}] {page_info['category']}: {page_info.get('title_override', url)}")
 
         soup = get_soup(url)
         if not soup:
+            print(f"  ⚠ Skipping {url} (page not found or error)")
             continue
 
-        # Extract main page content
+        # Skip pages with very little content (likely 404 pages or empty redirects)
         page_data = extract_page_content(soup, page_info)
+        if page_data['content_length_chars'] < 100:
+            print(f"  ⚠ Skipping {url} (content too short: {page_data['content_length_chars']} chars)")
+            continue
+
         results.append(page_data)
         print(f"  ✓ Extracted {page_data['content_length_chars']} chars")
 

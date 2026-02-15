@@ -1,8 +1,11 @@
 """
 FastAPI application for the Near Partner chatbot.
 """
-from fastapi import FastAPI
+import time
+from collections import defaultdict
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from .routes import router
 from ..config import config
 
@@ -12,9 +15,37 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# In-memory rate limiter (per IP): max 30 requests per minute for chat endpoints
+_rate_limit_store: dict = defaultdict(list)
+RATE_LIMIT_REQUESTS = 30
+RATE_LIMIT_WINDOW = 60  # seconds
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """Simple in-memory rate limiter for chat endpoints."""
+    if request.url.path.startswith("/api/v1/chat"):
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        window_start = now - RATE_LIMIT_WINDOW
+
+        # Clean old entries
+        _rate_limit_store[client_ip] = [
+            t for t in _rate_limit_store[client_ip] if t > window_start
+        ]
+
+        if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_REQUESTS:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please wait before sending more."}
+            )
+
+        _rate_limit_store[client_ip].append(now)
+
+    return await call_next(request)
+
+
 # CORS middleware for frontend access
-# WARNING: In production, replace "*" with specific allowed origins
-# Example: allow_origins=["https://yourdomain.com", "http://localhost:8501"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8501", "http://127.0.0.1:8501"],  # Streamlit default ports
