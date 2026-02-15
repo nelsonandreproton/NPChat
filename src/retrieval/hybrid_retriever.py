@@ -39,10 +39,12 @@ class HybridRetriever:
         self.semantic_weight = semantic_weight
         self.bm25_weight = bm25_weight
 
-        # BM25 index (built lazily)
+        # BM25 index (built lazily, rebuilt when needed)
         self._bm25 = None
         self._corpus_docs = None
         self._corpus_metadata = None
+        self._corpus_ids = None
+        self._index_doc_count = 0  # Track count to detect stale index
 
     def _build_bm25_index(self):
         """Build BM25 index from all documents in vector store."""
@@ -59,6 +61,7 @@ class HybridRetriever:
         self._corpus_docs = all_data["documents"]
         self._corpus_metadata = all_data["metadatas"]
         self._corpus_ids = all_data["ids"]
+        self._index_doc_count = len(self._corpus_docs)
 
         # Tokenize documents for BM25
         tokenized_corpus = [self._tokenize(doc) for doc in self._corpus_docs]
@@ -107,8 +110,9 @@ class HybridRetriever:
         """
         top_k = top_k or config.top_k
 
-        # Build BM25 index if needed
-        if self._bm25 is None:
+        # Build or rebuild BM25 index if needed
+        current_count = self.vector_store._collection.count()
+        if self._bm25 is None or current_count != self._index_doc_count:
             self._build_bm25_index()
 
         if self._bm25 is None:
@@ -232,6 +236,12 @@ class HybridRetriever:
             final_results.append(result)
 
         return final_results
+
+    def invalidate_index(self):
+        """Force rebuild of the BM25 index on next retrieval call."""
+        self._bm25 = None
+        self._index_doc_count = 0
+        print("[HybridRetriever] BM25 index invalidated - will rebuild on next query")
 
     def get_retrieval_scores(self, results: List[Dict]) -> List[float]:
         """Extract scores from results for logging."""

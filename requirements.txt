@@ -25,3 +25,7 @@ streamlit>=1.40.0
 python-dotenv>=1.0.0
 tiktoken>=0.8.0
 rank-bm25>=0.2.2
+apscheduler>=3.10.0
+
+# Testing
+pytest>=8.0.0

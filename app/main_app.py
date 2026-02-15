@@ -42,6 +42,9 @@ if "scrape_status" not in st.session_state:
 if "ingest_status" not in st.session_state:
     st.session_state.ingest_status = None
 
+if "scheduler_started" not in st.session_state:
+    st.session_state.scheduler_started = False
+
 # Default settings
 if "settings" not in st.session_state:
     st.session_state.settings = {
@@ -51,8 +54,19 @@ if "settings" not in st.session_state:
         "use_hybrid": True,
         "use_hyde": False,
         "use_cache": True,
-        "cache_ttl_hours": 24
+        "cache_ttl_hours": 24,
+        "evaluate_confidence": False,
+        "show_confidence": True
     }
+
+# Start background scheduler once per session
+if not st.session_state.scheduler_started:
+    try:
+        from src.scheduler import start_scheduler
+        start_scheduler()
+        st.session_state.scheduler_started = True
+    except Exception:
+        pass  # Scheduler is optional
 
 
 # Cached resources
@@ -242,13 +256,22 @@ def render_chat_tab():
 
                     result_container = {"result": None, "error": None, "done": False}
 
+                    # Build conversation history for multi-turn context
+                    history = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages[-10:]  # Last 5 turns
+                        if m["role"] in ("user", "assistant")
+                    ]
+
                     def run_query():
                         try:
                             result_container["result"] = rag_chain.query(
                                 question=prompt,
                                 top_k=settings["top_k"],
                                 temperature=settings["temperature"],
-                                use_hyde=settings["use_hyde"]
+                                use_hyde=settings["use_hyde"],
+                                conversation_history=history,
+                                evaluate_confidence=settings.get("evaluate_confidence", False)
                             )
                         except Exception as e:
                             result_container["error"] = e
@@ -274,12 +297,20 @@ def render_chat_tab():
 
                     response_placeholder.markdown(result.answer)
 
+                    # Low confidence warning
+                    if getattr(result, 'low_confidence', False):
+                        st.warning("⚠️ Nota: A confiança nesta resposta é baixa. Pode não haver informação suficiente na base de conhecimento.")
+
                     if hasattr(result, 'timings') and result.timings:
                         t = result.timings
+                        confidence_str = ""
+                        if settings.get("show_confidence") and result.confidence_score is not None:
+                            confidence_str = f" | Confiança: {result.confidence_score:.0%}"
                         st.caption(
                             f"⏱️ Retrieval: {t.get('retrieval', 0)}s | "
                             f"LLM: {t.get('llm_generation', 0)}s | "
                             f"Total: {t.get('total', elapsed_total)}s"
+                            f"{confidence_str}"
                         )
 
                     if result.sources:
@@ -541,6 +572,18 @@ def render_settings_tab():
             help="Cache responses to reduce LLM calls"
         )
 
+        evaluate_confidence = st.toggle(
+            "Auto-Quality Evaluation",
+            value=st.session_state.settings.get("evaluate_confidence", False),
+            help="Automatically evaluate response confidence (adds ~1-2s per query)"
+        )
+
+        show_confidence = st.toggle(
+            "Show Confidence Score",
+            value=st.session_state.settings.get("show_confidence", True),
+            help="Display confidence score below responses"
+        )
+
     st.divider()
 
     # Retrieval Settings
@@ -568,9 +611,11 @@ def render_settings_tab():
             "use_hybrid": use_hybrid,
             "use_hyde": use_hyde,
             "use_cache": use_cache,
-            "cache_ttl_hours": cache_ttl
+            "cache_ttl_hours": cache_ttl,
+            "evaluate_confidence": evaluate_confidence,
+            "show_confidence": show_confidence
         }
-        st.success("Settings saved!")
+        st.success("Definições guardadas!")
 
     st.divider()
 
@@ -581,7 +626,7 @@ def render_settings_tab():
 
     with col1:
         st.markdown("**Scrape Blogs**")
-        st.caption("Fetch new blog posts from nearpartner.com")
+        st.caption("Buscar novos artigos do blog nearpartner.com")
         if st.button("🌐 Scrape New Posts"):
             with st.spinner("Scraping..."):
                 try:

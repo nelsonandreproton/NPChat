@@ -1,11 +1,13 @@
 """
-Enhanced RAG chain with query expansion, hybrid search, analytics, and feedback learning.
+Enhanced RAG chain with query expansion, hybrid search, analytics, feedback learning,
+conversation history (multi-turn), and auto-quality evaluation.
 """
 import time
+import ollama
 from typing import Dict, Any, List, Generator, Optional
 from dataclasses import dataclass, field
 from .llm import OllamaLLM
-from .prompts import PromptTemplates
+from .prompts import PromptTemplates, sanitize_user_input
 from ..retrieval.hybrid_retriever import HybridRetriever
 from ..retrieval.query_expansion import QueryExpander
 from ..analytics.query_logger import QueryLogger
@@ -24,6 +26,8 @@ class EnhancedRAGResponse:
     expanded_query: Optional[str] = None
     timings: Dict[str, float] = field(default_factory=dict)
     log_id: Optional[int] = None
+    confidence_score: Optional[float] = None  # Auto-quality score 0-1
+    low_confidence: bool = False  # True if system is not confident in answer
 
 
 class EnhancedRAGChain:
@@ -74,7 +78,9 @@ class EnhancedRAGChain:
         question: str,
         top_k: int = 5,
         temperature: float = 0.7,
-        use_hyde: bool = False
+        use_hyde: bool = False,
+        conversation_history: Optional[List[Dict]] = None,
+        evaluate_confidence: bool = False
     ) -> EnhancedRAGResponse:
         """
         Process a question through the enhanced RAG pipeline.
@@ -84,6 +90,8 @@ class EnhancedRAGChain:
             top_k: Number of chunks to retrieve
             temperature: LLM temperature
             use_hyde: Use Hypothetical Document Embedding
+            conversation_history: Previous conversation messages for multi-turn context
+            evaluate_confidence: Run auto-quality evaluation on the response
 
         Returns:
             EnhancedRAGResponse with answer, sources, and metadata
@@ -91,6 +99,9 @@ class EnhancedRAGChain:
         timings = {}
         total_start = time.time()
         expanded_query = None
+
+        # Sanitize input
+        question = sanitize_user_input(question)
 
         # Step 1: Query Expansion (optional)
         search_query = question
@@ -132,9 +143,9 @@ class EnhancedRAGChain:
         # Extract chunk IDs for feedback tracking
         chunk_ids = [c.get("id", "") for c in chunks if c.get("id")]
 
-        # Step 3: Build prompt with context
+        # Step 3: Build prompt with context and conversation history
         t0 = time.time()
-        prompt = self.prompts.build_rag_prompt(question, chunks)
+        prompt = self.prompts.build_rag_prompt(question, chunks, conversation_history)
         timings["prompt_build"] = round(time.time() - t0, 2)
 
         # Step 4: Generate response with LLM
@@ -150,6 +161,14 @@ class EnhancedRAGChain:
 
         # Extract sources
         sources = self._extract_sources(chunks)
+
+        # Step 4b: Auto-quality evaluation (optional, adds ~1-2s)
+        confidence_score = None
+        low_confidence = False
+        if evaluate_confidence:
+            confidence_score = self._evaluate_confidence(question, chunks, answer)
+            low_confidence = confidence_score is not None and confidence_score < 0.5
+            print(f"[EnhancedRAG] Confidence score: {confidence_score}")
 
         timings["total"] = round(time.time() - total_start, 2)
         print(f"[EnhancedRAG] Total time: {timings['total']}s")
@@ -173,8 +192,42 @@ class EnhancedRAGChain:
             query=question,
             expanded_query=expanded_query,
             timings=timings,
-            log_id=log_id
+            log_id=log_id,
+            confidence_score=confidence_score,
+            low_confidence=low_confidence
         )
+
+    def _evaluate_confidence(
+        self,
+        question: str,
+        chunks: List[Dict],
+        answer: str
+    ) -> Optional[float]:
+        """
+        Auto-evaluate response quality using the LLM.
+
+        Returns a confidence score between 0 and 1, or None on failure.
+        """
+        try:
+            context_summary = " | ".join(
+                c.get("metadata", {}).get("title", "") for c in chunks[:3]
+            )
+            eval_prompt = self.prompts.confidence_eval_prompt.format(
+                question=question,
+                context_summary=context_summary,
+                answer=answer[:500]
+            )
+            client = ollama.Client(host=config.ollama_base_url)
+            response = client.generate(
+                model=config.llm_model,
+                prompt=eval_prompt,
+                options={"temperature": 0.1, "num_predict": 10}
+            )
+            score_str = response["response"].strip()
+            score = float(score_str)
+            return max(0.0, min(1.0, score))
+        except Exception:
+            return None
 
     def update_feedback(self, log_id: int, feedback: str):
         """Update feedback for a logged query."""

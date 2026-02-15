@@ -4,7 +4,7 @@ Response caching to reduce LLM calls.
 import sqlite3
 import json
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from ..config import config
 
@@ -106,7 +106,7 @@ class ResponseCache:
 
             # Check if expired
             created = datetime.fromisoformat(created_at)
-            if datetime.utcnow() - created < timedelta(hours=self.ttl_hours):
+            if datetime.now(timezone.utc) - created < timedelta(hours=self.ttl_hours):
                 # Update hit count
                 cursor.execute("""
                     UPDATE response_cache SET hit_count = hit_count + 1 WHERE id = ?
@@ -159,7 +159,7 @@ class ResponseCache:
             settings_hash,
             response,
             json.dumps(sources),
-            datetime.utcnow().isoformat()
+            datetime.now(timezone.utc).isoformat()
         ))
 
         conn.commit()
@@ -178,7 +178,7 @@ class ResponseCache:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cutoff = (datetime.utcnow() - timedelta(hours=self.ttl_hours)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=self.ttl_hours)).isoformat()
         cursor.execute("DELETE FROM response_cache WHERE created_at < ?", (cutoff,))
 
         deleted = cursor.rowcount

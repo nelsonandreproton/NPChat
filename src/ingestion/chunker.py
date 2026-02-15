@@ -20,12 +20,14 @@ class TextChunker:
     Chunks text intelligently by respecting semantic boundaries.
     """
 
-    def __init__(self, chunk_size: int = 600, chunk_overlap: int = 100):
+    def __init__(self, chunk_size: int = 1200, chunk_overlap: int = 200):
         """
         Initialize chunker.
 
         Args:
-            chunk_size: Target chunk size in characters (approximate)
+            chunk_size: Target chunk size in characters (approximate). Note: the
+                config.chunk_size is labelled in tokens but this chunker works in
+                characters. 1200 chars ≈ 300-400 tokens for typical English text.
             chunk_overlap: Overlap between chunks in characters
         """
         self.chunk_size = chunk_size
