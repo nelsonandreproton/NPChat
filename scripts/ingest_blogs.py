@@ -39,6 +39,11 @@ def main():
         action="store_true",
         help="Only ingest company pages"
     )
+    parser.add_argument(
+        "--contextual",
+        action="store_true",
+        help="Enable contextual retrieval: prepend LLM-generated context to each chunk before embedding"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
@@ -60,6 +65,11 @@ def main():
     print(f"\nContent sources:")
     print(f"  Blog posts:    {'Found' if blog_exists else 'Not found'} ({config.blog_posts_path})")
     print(f"  Company pages: {'Found' if pages_exists else 'Not found'} ({config.company_pages_path})")
+
+    # Apply CLI flag to config before initializing pipeline
+    if args.contextual:
+        config.use_contextual_retrieval = True
+        print("\n[Contextual Retrieval] Enabled — LLM context will be prepended to each chunk")
 
     # Initialize pipeline
     pipeline = IngestPipeline()

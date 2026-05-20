@@ -3,13 +3,13 @@ Enhanced RAG chain with query expansion, hybrid search, analytics, feedback lear
 conversation history (multi-turn), and auto-quality evaluation.
 """
 import time
-import ollama
 from typing import Dict, Any, List, Generator, Optional
 from dataclasses import dataclass, field
 from .llm import OllamaLLM
 from .prompts import PromptTemplates, sanitize_user_input
 from ..retrieval.hybrid_retriever import HybridRetriever
 from ..retrieval.query_expansion import QueryExpander
+from ..retrieval.reranker import ChunkReranker
 from ..analytics.query_logger import QueryLogger
 from ..feedback.feedback_learner import FeedbackLearner
 from ..config import config
@@ -43,24 +43,19 @@ class EnhancedRAGChain:
         llm: Optional[OllamaLLM] = None,
         use_query_expansion: bool = True,
         use_hybrid_search: bool = True,
-        use_logging: bool = True
+        use_logging: bool = True,
+        use_reranking: Optional[bool] = None,
+        use_multi_query: Optional[bool] = None,
     ):
-        """
-        Initialize the enhanced RAG chain.
-
-        Args:
-            llm: OllamaLLM instance
-            use_query_expansion: Enable query expansion
-            use_hybrid_search: Enable hybrid search (semantic + BM25)
-            use_logging: Enable query logging
-        """
         self.llm = llm or OllamaLLM()
         self.prompts = PromptTemplates()
 
-        # Feature flags
+        # Feature flags — fall back to config defaults when not explicitly set
         self.use_query_expansion = use_query_expansion
         self.use_hybrid_search = use_hybrid_search
         self.use_logging = use_logging
+        self.use_reranking = use_reranking if use_reranking is not None else config.use_reranking
+        self.use_multi_query = use_multi_query if use_multi_query is not None else config.use_multi_query
 
         # Initialize components
         self.hybrid_retriever = HybridRetriever() if use_hybrid_search else None
@@ -68,10 +63,19 @@ class EnhancedRAGChain:
         self.query_logger = QueryLogger() if use_logging else None
         self.feedback_learner = FeedbackLearner()
 
+        # Reranker — lazy-loaded on first use so startup doesn't block
+        self._reranker: Optional[ChunkReranker] = None
+
         # Fallback to basic retriever if hybrid not used
         if not use_hybrid_search:
             from ..retrieval.retriever import Retriever
             self.basic_retriever = Retriever()
+
+    @property
+    def reranker(self) -> ChunkReranker:
+        if self._reranker is None:
+            self._reranker = ChunkReranker()
+        return self._reranker
 
     def query(
         self,
@@ -123,21 +127,56 @@ class EnhancedRAGChain:
         print("[EnhancedRAG] Starting retrieval...")
         t0 = time.time()
 
-        if self.use_hybrid_search and self.hybrid_retriever:
+        # Fetch more candidates when reranking so the cross-encoder has room to work
+        fetch_k = config.rerank_top_k_candidates if self.use_reranking else top_k
+
+        if self.use_multi_query and self.query_expander:
+            # Generate query variants and union results by chunk ID
+            variants = self.query_expander.multi_query(question)
+            print(f"[EnhancedRAG] Multi-query: {len(variants)} variants")
+            seen_ids: set = set()
+            chunks = []
+            for variant in variants:
+                if self.use_hybrid_search and self.hybrid_retriever:
+                    variant_chunks = self.hybrid_retriever.retrieve(
+                        query=variant,
+                        top_k=fetch_k,
+                        expanded_query=expanded_query,
+                    )
+                else:
+                    variant_chunks = self.basic_retriever.retrieve_with_scores(variant, top_k=fetch_k)
+                for c in variant_chunks:
+                    cid = c.get("id", "")
+                    if cid and cid not in seen_ids:
+                        seen_ids.add(cid)
+                        chunks.append(c)
+            retrieval_scores = (
+                self.hybrid_retriever.get_retrieval_scores(chunks)
+                if self.use_hybrid_search and self.hybrid_retriever
+                else [c.get("distance", 0) for c in chunks]
+            )
+        elif self.use_hybrid_search and self.hybrid_retriever:
             chunks = self.hybrid_retriever.retrieve(
                 query=question,  # Original for embedding
-                top_k=top_k,
+                top_k=fetch_k,
                 expanded_query=expanded_query  # Expanded for BM25
             )
             retrieval_scores = self.hybrid_retriever.get_retrieval_scores(chunks)
         else:
-            chunks = self.basic_retriever.retrieve_with_scores(search_query, top_k=top_k)
+            chunks = self.basic_retriever.retrieve_with_scores(search_query, top_k=fetch_k)
             retrieval_scores = [c.get("distance", 0) for c in chunks]
 
         timings["retrieval"] = round(time.time() - t0, 2)
         print(f"[EnhancedRAG] Retrieval took {timings['retrieval']}s - found {len(chunks)} chunks")
 
-        # Step 2b: Apply feedback-based adjustments
+        # Step 2b: Cross-encoder reranking (optional)
+        if self.use_reranking and chunks:
+            t0 = time.time()
+            chunks = self.reranker.rerank(question, chunks, top_k=top_k)
+            timings["reranking"] = round(time.time() - t0, 2)
+            print(f"[EnhancedRAG] Reranking took {timings['reranking']}s → {len(chunks)} chunks kept")
+
+        # Step 2c: Apply feedback-based adjustments
         chunks = self.feedback_learner.apply_adjustments_to_results(chunks)
 
         # Extract chunk IDs for feedback tracking
@@ -217,13 +256,15 @@ class EnhancedRAGChain:
                 context_summary=context_summary,
                 answer=answer[:500]
             )
-            client = ollama.Client(host=config.ollama_base_url)
-            response = client.generate(
+            from openai import OpenAI
+            client = OpenAI(base_url=config.lmstudio_base_url, api_key="lm-studio")
+            response = client.chat.completions.create(
                 model=config.llm_model,
-                prompt=eval_prompt,
-                options={"temperature": 0.1, "num_predict": 10}
+                messages=[{"role": "user", "content": eval_prompt}],
+                temperature=0.1,
+                max_tokens=10,
             )
-            score_str = response["response"].strip()
+            score_str = response.choices[0].message.content.strip()
             score = float(score_str)
             return max(0.0, min(1.0, score))
         except Exception:

@@ -2,9 +2,15 @@
 Smart text chunking for blog posts.
 Respects paragraph and heading boundaries for better semantic coherence.
 """
+import hashlib
 import re
 from typing import List, Dict, Any
 from dataclasses import dataclass
+
+
+def _content_hash(text: str) -> str:
+    """SHA-256 of text, first 16 hex chars — used as a stable chunk fingerprint."""
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
 @dataclass
@@ -117,9 +123,15 @@ class TextChunker:
             # If adding this paragraph exceeds chunk_size, finalize current chunk
             if current_length + para_length > self.chunk_size and current_chunk:
                 chunk_text = "\n\n".join(current_chunk)
+                source_hash = _content_hash(chunk_text)
                 chunks.append(Chunk(
                     text=chunk_text,
-                    metadata={**base_metadata, "chunk_index": chunk_index},
+                    metadata={
+                        **base_metadata,
+                        "chunk_index": chunk_index,
+                        "source_hash": source_hash,
+                        "content_hash": source_hash,  # overwritten by contextualizer if enabled
+                    },
                     chunk_index=chunk_index
                 ))
                 chunk_index += 1
@@ -138,13 +150,80 @@ class TextChunker:
         # Don't forget the last chunk
         if current_chunk:
             chunk_text = "\n\n".join(current_chunk)
+            source_hash = _content_hash(chunk_text)
             chunks.append(Chunk(
                 text=chunk_text,
-                metadata={**base_metadata, "chunk_index": chunk_index},
+                metadata={
+                    **base_metadata,
+                    "chunk_index": chunk_index,
+                    "source_hash": source_hash,
+                    "content_hash": source_hash,  # overwritten by contextualizer if enabled
+                },
                 chunk_index=chunk_index
             ))
 
         return chunks
+
+    def chunk_blog_post_with_children(self, post: Dict[str, Any]) -> List[Chunk]:
+        """
+        Chunk a blog post into paragraph-level child chunks, each carrying its
+        parent chunk text in metadata.
+
+        Parent granularity = current 1200-char chunks (same as chunk_blog_post).
+        Child granularity = individual paragraphs produced by _split_into_paragraphs.
+
+        Each child Chunk has:
+          - text: the paragraph text (small, precise, what gets embedded)
+          - metadata["parent_id"]: stable hash of the parent chunk text
+          - metadata["parent_text"]: the full parent chunk text (served to the LLM)
+          - metadata["source_hash"] / metadata["content_hash"]: hash of child text
+
+        Old path (chunk_blog_post) is untouched.
+        """
+        content = post.get("content", "")
+        if not content:
+            return []
+
+        base_metadata = {
+            "url": post.get("url", ""),
+            "title": post.get("title", ""),
+            "author": post.get("author", ""),
+            "published_date": post.get("published_date", ""),
+            "categories": post.get("categories", []),
+        }
+
+        paragraphs = self._split_into_paragraphs(content)
+        parent_chunks = self._group_paragraphs(paragraphs, base_metadata)
+
+        children: List[Chunk] = []
+        child_index = 0
+
+        for parent in parent_chunks:
+            parent_id = parent.metadata["source_hash"]
+            parent_text = parent.text
+
+            # Split parent back into paragraphs — the inverse of _group_paragraphs'
+            # "\n\n".join(current_chunk). This is exact and avoids the overlap
+            # paragraph ambiguity that a substring scan would create.
+            parent_paras = parent_text.split("\n\n") if parent_text else [parent_text]
+
+            for para in parent_paras:
+                source_hash = _content_hash(para)
+                children.append(Chunk(
+                    text=para,
+                    metadata={
+                        **base_metadata,
+                        "chunk_index": child_index,
+                        "parent_id": parent_id,
+                        "parent_text": parent_text,
+                        "source_hash": source_hash,
+                        "content_hash": source_hash,
+                    },
+                    chunk_index=child_index,
+                ))
+                child_index += 1
+
+        return children
 
     def chunk_all_posts(self, posts: List[Dict[str, Any]]) -> List[Chunk]:
         """
@@ -159,5 +238,13 @@ class TextChunker:
         all_chunks = []
         for post in posts:
             chunks = self.chunk_blog_post(post)
+            all_chunks.extend(chunks)
+        return all_chunks
+
+    def chunk_all_posts_with_children(self, posts: List[Dict[str, Any]]) -> List[Chunk]:
+        """Chunk all posts using parent-child granularity."""
+        all_chunks = []
+        for post in posts:
+            chunks = self.chunk_blog_post_with_children(post)
             all_chunks.extend(chunks)
         return all_chunks

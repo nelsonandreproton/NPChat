@@ -37,7 +37,7 @@ def get_soup(url: str) -> Optional[BeautifulSoup]:
         resp.raise_for_status()
         return BeautifulSoup(resp.text, "html.parser")
     except requests.RequestException as e:
-        print(f"  ✗ Failed to fetch {url} → {e}")
+        print(f"  FAIL Failed to fetch {url} -> {e}")
         return None
 
 
@@ -169,7 +169,7 @@ def discover_all_post_urls() -> List[str]:
 
     while True:
         url = BLOG_BASE if page == 1 else f"{BLOG_BASE}page/{page}/"
-        print(f"  Page {page} → {url}")
+        print(f"  Page {page} -> {url}")
         soup = get_soup(url)
         if not soup:
             break
@@ -182,7 +182,7 @@ def discover_all_post_urls() -> List[str]:
                 seen_urls.add(u)
                 new_count += 1
 
-        print(f"    Found {len(new_urls)} links → {new_count} new")
+        print(f"    Found {len(new_urls)} links -> {new_count} new")
         if new_count == 0:
             break
 
@@ -193,10 +193,10 @@ def discover_all_post_urls() -> List[str]:
 
 
 def main():
-    print("═" * 60)
+    print("=" * 60)
     print("  Near Partner Blog Scraper")
     print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("═" * 60)
+    print("=" * 60)
 
     # Load existing posts
     print("\nChecking for existing posts...")
@@ -212,8 +212,8 @@ def main():
     print(f"New posts to scrape: {len(new_urls)}")
 
     if not new_urls:
-        print("\n✓ All posts are already scraped. Nothing to do!")
-        print("═" * 60)
+        print("\nOK All posts are already scraped. Nothing to do!")
+        print("=" * 60)
         return
 
     # Scrape new posts
@@ -225,9 +225,9 @@ def main():
         post = scrape_single_post(url)
         if post:
             new_posts.append(post)
-            print(f"✓ {post.get('title', '—')[:60]}...")
+            print(f"OK {post.get('title', '-')[:60]}...")
         else:
-            print(f"✗ Failed")
+            print(f"FAIL Failed")
         time.sleep(DELAY_BETWEEN_REQUESTS)
 
     # Merge and save
@@ -236,13 +236,13 @@ def main():
         # Sort by published date (newest first)
         all_posts.sort(key=lambda x: x.get("published_date", ""), reverse=True)
         save_posts(all_posts)
-        print(f"\n✓ Saved {len(new_posts)} new posts")
+        print(f"\nOK Saved {len(new_posts)} new posts")
         print(f"  Total posts in file: {len(all_posts)}")
     else:
         print("\nNo new posts were successfully scraped.")
 
     print(f"\nFinished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("═" * 60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

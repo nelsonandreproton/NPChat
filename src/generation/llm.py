@@ -1,99 +1,65 @@
 """
-Ollama LLM wrapper for generating responses.
+LM Studio LLM wrapper for generating responses (OpenAI-compatible API).
 """
 from typing import Generator, Optional
-import ollama
+from openai import OpenAI
 from ..config import config
 
 
 class OllamaLLM:
     """
-    Wrapper for Ollama LLM interactions.
+    LLM client backed by LM Studio's OpenAI-compatible local server.
+    The class name is preserved for backwards compatibility with existing callers.
     """
 
     def __init__(self, model: str = None):
-        """
-        Initialize the LLM.
-
-        Args:
-            model: Ollama model name
-        """
         self.model = model or config.llm_model
-        self._client = ollama.Client(host=config.ollama_base_url)
+        self._client = OpenAI(
+            base_url=config.lmstudio_base_url,
+            api_key="lm-studio",
+        )
 
     def generate(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: int = 1024
+        max_tokens: int = 1024,
     ) -> str:
-        """
-        Generate a response from the LLM.
-
-        Args:
-            prompt: User prompt
-            system_prompt: System prompt for context
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens in response
-
-        Returns:
-            Generated response text
-        """
         messages = []
-
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-
         messages.append({"role": "user", "content": prompt})
 
-        response = self._client.chat(
+        response = self._client.chat.completions.create(
             model=self.model,
             messages=messages,
-            options={
-                "temperature": temperature,
-                "num_predict": max_tokens
-            }
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
-
-        return response["message"]["content"]
+        return response.choices[0].message.content
 
     def generate_stream(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: int = 1024
+        max_tokens: int = 1024,
     ) -> Generator[str, None, None]:
-        """
-        Generate a streaming response from the LLM.
-
-        Args:
-            prompt: User prompt
-            system_prompt: System prompt for context
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens in response
-
-        Yields:
-            Response text chunks
-        """
         messages = []
-
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-
         messages.append({"role": "user", "content": prompt})
 
-        stream = self._client.chat(
+        stream = self._client.chat.completions.create(
             model=self.model,
             messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
             stream=True,
-            options={
-                "temperature": temperature,
-                "num_predict": max_tokens
-            }
         )
 
         for chunk in stream:
-            if "message" in chunk and "content" in chunk["message"]:
-                yield chunk["message"]["content"]
+            delta = chunk.choices[0].delta
+            if delta and delta.content:
+                yield delta.content

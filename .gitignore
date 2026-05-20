@@ -50,5 +50,8 @@ Thumbs.db
 *.log
 logs/
 
+# Generated index caches
+data/bm25_index.pkl
+
 # Claude
 .claude/

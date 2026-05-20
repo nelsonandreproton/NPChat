@@ -53,6 +53,9 @@ if "settings" not in st.session_state:
         "use_expansion": True,
         "use_hybrid": True,
         "use_hyde": False,
+        "use_reranking": True,
+        "use_multi_query": True,
+        "use_contextual_retrieval": False,
         "use_cache": True,
         "cache_ttl_hours": 24,
         "evaluate_confidence": False,
@@ -71,12 +74,14 @@ if not st.session_state.scheduler_started:
 
 # Cached resources
 @st.cache_resource
-def get_rag_chain(use_expansion: bool, use_hybrid: bool):
+def get_rag_chain(use_expansion: bool, use_hybrid: bool, use_reranking: bool = True, use_multi_query: bool = True):
     """Initialize enhanced RAG chain."""
     return EnhancedRAGChain(
         use_query_expansion=use_expansion,
         use_hybrid_search=use_hybrid,
-        use_logging=True
+        use_logging=True,
+        use_reranking=use_reranking,
+        use_multi_query=use_multi_query,
     )
 
 
@@ -251,7 +256,9 @@ def render_chat_tab():
                     # Generate new response
                     rag_chain = get_rag_chain(
                         use_expansion=settings["use_expansion"],
-                        use_hybrid=settings["use_hybrid"]
+                        use_hybrid=settings["use_hybrid"],
+                        use_reranking=settings.get("use_reranking", True),
+                        use_multi_query=settings.get("use_multi_query", True),
                     )
 
                     result_container = {"result": None, "error": None, "done": False}
@@ -303,11 +310,13 @@ def render_chat_tab():
 
                     if hasattr(result, 'timings') and result.timings:
                         t = result.timings
+                        rerank_str = f" | Rerank: {t['reranking']}s" if "reranking" in t else ""
                         confidence_str = ""
                         if settings.get("show_confidence") and result.confidence_score is not None:
                             confidence_str = f" | Confiança: {result.confidence_score:.0%}"
                         st.caption(
-                            f"⏱️ Retrieval: {t.get('retrieval', 0)}s | "
+                            f"⏱️ Retrieval: {t.get('retrieval', 0)}s"
+                            f"{rerank_str} | "
                             f"LLM: {t.get('llm_generation', 0)}s | "
                             f"Total: {t.get('total', elapsed_total)}s"
                             f"{confidence_str}"
@@ -336,8 +345,8 @@ def render_chat_tab():
             except Exception as e:
                 thinking_placeholder.empty()
                 st.error(f"Error: {str(e)}")
-                if "ollama" in str(e).lower():
-                    st.warning("Make sure Ollama is running: `ollama serve`")
+                if "connection" in str(e).lower() or "refused" in str(e).lower():
+                    st.warning("Make sure LM Studio is running with the local server started (Developer tab → Start Server).")
 
     # Sidebar for chat
     with st.sidebar:
@@ -559,11 +568,29 @@ def render_settings_tab():
             help="Combine semantic + keyword search"
         )
 
+        use_multi_query = st.toggle(
+            "Multi-Query Retrieval",
+            value=st.session_state.settings.get("use_multi_query", True),
+            help="Generate 3 query variants and union results before reranking (+recall, ~1s overhead)"
+        )
+
+        use_contextual_retrieval = st.toggle(
+            "Contextual Retrieval (ingest)",
+            value=st.session_state.settings.get("use_contextual_retrieval", False),
+            help="Prepend LLM-generated context to each chunk at ingest time (Anthropic 2024). Requires full re-ingest to take effect."
+        )
+
     with col2:
         use_hyde = st.toggle(
             "HyDE",
             value=st.session_state.settings["use_hyde"],
             help="Hypothetical Document Embedding (slower but can improve results)"
+        )
+
+        use_reranking = st.toggle(
+            "Cross-Encoder Reranking",
+            value=st.session_state.settings.get("use_reranking", True),
+            help="Rerank retrieved chunks with FlashRank cross-encoder (+30–40% accuracy, ~20ms overhead)"
         )
 
         use_cache = st.toggle(
@@ -610,6 +637,9 @@ def render_settings_tab():
             "use_expansion": use_expansion,
             "use_hybrid": use_hybrid,
             "use_hyde": use_hyde,
+            "use_reranking": use_reranking,
+            "use_multi_query": use_multi_query,
+            "use_contextual_retrieval": use_contextual_retrieval,
             "use_cache": use_cache,
             "cache_ttl_hours": cache_ttl,
             "evaluate_confidence": evaluate_confidence,
@@ -641,7 +671,7 @@ def render_settings_tab():
                         st.success("Scraping complete!")
                         st.text(result.stdout[-1000:] if len(result.stdout) > 1000 else result.stdout)
                     else:
-                        st.error(f"Error: {result.stderr}")
+                        st.error(f"Error: {result.stderr[:300]}")
                 except subprocess.TimeoutExpired:
                     st.error("Scraping timed out")
                 except Exception as e:
@@ -653,8 +683,11 @@ def render_settings_tab():
         if st.button("📥 Ingest Content"):
             with st.spinner("Ingesting..."):
                 try:
+                    ingest_cmd = [sys.executable, "scripts/ingest_blogs.py"]
+                    if st.session_state.settings.get("use_contextual_retrieval", False):
+                        ingest_cmd.append("--contextual")
                     result = subprocess.run(
-                        [sys.executable, "scripts/ingest_blogs.py"],
+                        ingest_cmd,
                         cwd=str(Path(__file__).parent.parent),
                         capture_output=True,
                         text=True,
@@ -667,7 +700,7 @@ def render_settings_tab():
                         get_retriever.clear()
                         st.text(result.stdout[-1000:] if len(result.stdout) > 1000 else result.stdout)
                     else:
-                        st.error(f"Error: {result.stderr}")
+                        st.error(f"Error: {result.stderr[:300]}")
                 except subprocess.TimeoutExpired:
                     st.error("Ingestion timed out")
                 except Exception as e:
@@ -690,12 +723,15 @@ def render_settings_tab():
                     )
 
                     if result1.returncode != 0:
-                        st.error(f"Scrape failed: {result1.stderr}")
+                        st.error(f"Scrape failed: {result1.stderr[:300]}")
                     else:
                         # Ingest
                         st.text("Step 2/2: Ingesting...")
+                        ingest_cmd2 = [sys.executable, "scripts/ingest_blogs.py"]
+                        if st.session_state.settings.get("use_contextual_retrieval", False):
+                            ingest_cmd2.append("--contextual")
                         result2 = subprocess.run(
-                            [sys.executable, "scripts/ingest_blogs.py"],
+                            ingest_cmd2,
                             cwd=str(Path(__file__).parent.parent),
                             capture_output=True,
                             text=True,
@@ -707,7 +743,7 @@ def render_settings_tab():
                             get_vector_store.clear()
                             get_retriever.clear()
                         else:
-                            st.error(f"Ingest failed: {result2.stderr}")
+                            st.error(f"Ingest failed: {result2.stderr[:300]}")
 
                 except subprocess.TimeoutExpired:
                     st.error("Operation timed out")
@@ -735,6 +771,34 @@ def render_settings_tab():
             cache.clear()
             st.success("Cache cleared!")
             st.rerun()
+
+    st.divider()
+
+    st.divider()
+
+    # LM Studio Status
+    st.subheader("🟣 LM Studio Status")
+
+    from src.config import config
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown(f"**Server URL:** `{config.lmstudio_base_url}`")
+        st.markdown(f"**LLM model:** `{config.llm_model}`")
+        st.markdown(f"**Embedding model:** `{config.embedding_model}`")
+
+    with col2:
+        try:
+            from openai import OpenAI
+            client = OpenAI(base_url=config.lmstudio_base_url, api_key="lm-studio")
+            models = client.models.list()
+            model_ids = [m.id for m in models.data]
+            st.success(f"✅ LM Studio connected — {len(model_ids)} model(s) loaded")
+            if model_ids:
+                st.caption("Loaded: " + ", ".join(model_ids))
+        except Exception as e:
+            st.error("❌ LM Studio not reachable")
+            st.caption("Start the server in LM Studio → Developer tab → Start Server (port 1234)")
 
     st.divider()
 

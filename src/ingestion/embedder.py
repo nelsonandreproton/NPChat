@@ -1,67 +1,46 @@
 """
-Embedding generation using Ollama's nomic-embed-text model.
+Embedding generation using LM Studio's OpenAI-compatible embeddings API.
 """
 from typing import List
-import ollama
+from openai import OpenAI
 from ..config import config
+
+# mxbai-embed-large-v1 was trained with this prefix on queries only (not documents).
+# Prepending it at query time meaningfully improves retrieval accuracy.
+# Reference: https://huggingface.co/mixedbread-ai/mxbai-embed-large-v1
+_MXBAI_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+
+
+def _apply_query_prefix(model: str, query: str) -> str:
+    if "mxbai" in model.lower():
+        return _MXBAI_QUERY_PREFIX + query
+    return query
 
 
 class Embedder:
     """
-    Generates embeddings using Ollama.
+    Generates embeddings via LM Studio's local server.
     """
 
     def __init__(self, model: str = None):
-        """
-        Initialize embedder.
-
-        Args:
-            model: Ollama embedding model name
-        """
         self.model = model or config.embedding_model
-        self._client = ollama.Client(host=config.ollama_base_url)
+        self._client = OpenAI(
+            base_url=config.lmstudio_base_url,
+            api_key="lm-studio",
+        )
 
     def embed_text(self, text: str) -> List[float]:
-        """
-        Generate embedding for a single text.
-
-        Args:
-            text: Text to embed
-
-        Returns:
-            Embedding vector as list of floats
-        """
-        response = self._client.embeddings(
+        response = self._client.embeddings.create(
             model=self.model,
-            prompt=text
+            input=text,
         )
-        return response["embedding"]
+        return response.data[0].embedding
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for multiple texts.
-
-        Args:
-            texts: List of texts to embed
-
-        Returns:
-            List of embedding vectors
-        """
         embeddings = []
         for text in texts:
-            embedding = self.embed_text(text)
-            embeddings.append(embedding)
+            embeddings.append(self.embed_text(text))
         return embeddings
 
     def embed_query(self, query: str) -> List[float]:
-        """
-        Generate embedding for a search query.
-        Same as embed_text but semantically named for clarity.
-
-        Args:
-            query: Search query
-
-        Returns:
-            Embedding vector
-        """
-        return self.embed_text(query)
+        return self.embed_text(_apply_query_prefix(self.model, query))

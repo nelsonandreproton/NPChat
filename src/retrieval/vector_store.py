@@ -44,14 +44,16 @@ class VectorStore:
         embeddings: List[List[float]]
     ) -> int:
         """
-        Add chunks with their embeddings to the store.
+        Upsert chunks with their embeddings into the store.
 
-        Args:
-            chunks: List of Chunk objects
-            embeddings: List of embedding vectors
+        Uses upsert so re-ingesting the same content is idempotent and edited
+        content overwrites stale entries (same content_hash → same ID).
+
+        ID scheme: ``<url_safe>_<content_hash>`` — stable across re-ingests as
+        long as the text is unchanged; changes when content changes.
 
         Returns:
-            Number of chunks added
+            Number of chunks upserted
         """
         if not chunks:
             return 0
@@ -60,22 +62,20 @@ class VectorStore:
         documents = []
         metadatas = []
 
-        for i, chunk in enumerate(chunks):
-            # Create unique ID from URL and chunk index
-            chunk_id = f"{chunk.metadata.get('url', 'unknown')}_{chunk.chunk_index}"
-            chunk_id = chunk_id.replace("/", "_").replace(":", "_")
+        for chunk in chunks:
+            url_safe = chunk.metadata.get("url", "unknown").replace("/", "_").replace(":", "_")
+            content_hash = chunk.metadata.get("content_hash", str(chunk.chunk_index))
+            chunk_id = f"{url_safe}_{content_hash}"
 
             ids.append(chunk_id)
             documents.append(chunk.text)
 
-            # Convert categories list to string for ChromaDB
             metadata = chunk.metadata.copy()
             if isinstance(metadata.get("categories"), list):
                 metadata["categories"] = "|".join(metadata["categories"])
             metadatas.append(metadata)
 
-        # Add to collection
-        self._collection.add(
+        self._collection.upsert(
             ids=ids,
             embeddings=embeddings,
             documents=documents,
@@ -83,6 +83,44 @@ class VectorStore:
         )
 
         return len(chunks)
+
+    def get_existing_hashes_for_url(self, url: str) -> set:
+        """
+        Return the set of content_hash values already stored for a given URL.
+
+        Used by the ingest pipeline to skip embedding chunks that haven't changed.
+        """
+        results = self._collection.get(
+            where={"url": url},
+            include=["metadatas"]
+        )
+        hashes = set()
+        for meta in (results.get("metadatas") or []):
+            h = (meta or {}).get("content_hash")
+            if h:
+                hashes.add(h)
+        return hashes
+
+    def get_existing_source_hashes_for_url(self, url: str) -> set:
+        """
+        Return the set of source_hash values already stored for a given URL.
+
+        source_hash is the plain-text chunk hash — stable regardless of whether
+        contextual retrieval is on or off. Used as the dedup key so that toggling
+        contextual retrieval does not force a re-embed of unchanged content.
+        Falls back to content_hash for chunks ingested before source_hash was introduced.
+        """
+        results = self._collection.get(
+            where={"url": url},
+            include=["metadatas"]
+        )
+        hashes = set()
+        for meta in (results.get("metadatas") or []):
+            meta = meta or {}
+            h = meta.get("source_hash") or meta.get("content_hash")
+            if h:
+                hashes.add(h)
+        return hashes
 
     def search(
         self,
@@ -166,6 +204,17 @@ class VectorStore:
     def count(self) -> int:
         """Get total number of chunks in the store."""
         return self._collection.count()
+
+    def get_stored_embedding_dimension(self) -> Optional[int]:
+        """
+        Return the dimension of stored embeddings by sampling one entry.
+        Returns None if the store is empty.
+        """
+        results = self._collection.get(limit=1, include=["embeddings"])
+        embeddings = results.get("embeddings")
+        if embeddings is not None and len(embeddings) > 0 and embeddings[0] is not None:
+            return len(embeddings[0])
+        return None
 
     def clear(self):
         """Delete all chunks from the store."""

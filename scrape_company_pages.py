@@ -167,7 +167,7 @@ def get_soup(url: str) -> Optional[BeautifulSoup]:
         resp.raise_for_status()
         return BeautifulSoup(resp.text, "html.parser")
     except requests.RequestException as e:
-        print(f"  ✗ Failed to fetch {url} → {e}")
+        print(f"  FAIL Failed to fetch {url} -> {e}")
         return None
 
 
@@ -279,7 +279,7 @@ def scrape_success_stories(soup: BeautifulSoup, base_url: str) -> List[Dict]:
 
     # Scrape individual stories
     for url in list(story_urls)[:20]:  # Limit to 20
-        print(f"    → Scraping story: {url}")
+        print(f"    -> Scraping story: {url}")
         story_soup = get_soup(url)
         if story_soup:
             story_data = extract_page_content(story_soup, {
@@ -310,10 +310,10 @@ def load_existing_pages() -> tuple[list, set]:
 
 
 def main():
-    print("═" * 60)
+    print("=" * 60)
     print("  Near Partner Company Pages Scraper")
     print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("═" * 60)
+    print("=" * 60)
 
     # Load existing pages
     print("\nChecking for existing pages...")
@@ -325,8 +325,8 @@ def main():
     print(f"  New pages to scrape: {len(pages_to_scrape)}")
 
     if not pages_to_scrape:
-        print("\n✓ All company pages are already scraped. Nothing to do!")
-        print("═" * 60)
+        print("\nOK All company pages are already scraped. Nothing to do!")
+        print("=" * 60)
         return
 
     results = []
@@ -337,24 +337,24 @@ def main():
 
         soup = get_soup(url)
         if not soup:
-            print(f"  ⚠ Skipping {url} (page not found or error)")
+            print(f"  WARN Skipping {url} (page not found or error)")
             continue
 
         # Skip pages with very little content (likely 404 pages or empty redirects)
         page_data = extract_page_content(soup, page_info)
         if page_data['content_length_chars'] < 100:
-            print(f"  ⚠ Skipping {url} (content too short: {page_data['content_length_chars']} chars)")
+            print(f"  WARN Skipping {url} (content too short: {page_data['content_length_chars']} chars)")
             continue
 
         results.append(page_data)
-        print(f"  ✓ Extracted {page_data['content_length_chars']} chars")
+        print(f"  OK Extracted {page_data['content_length_chars']} chars")
 
         # Special handling for success stories / case studies
         if "success-stories" in url or "case-studies" in url:
-            print("  → Looking for individual stories...")
+            print("  -> Looking for individual stories...")
             stories = scrape_success_stories(soup, url)
             if stories:
-                print(f"  ✓ Found {len(stories)} individual stories")
+                print(f"  OK Found {len(stories)} individual stories")
                 results.extend(stories)
 
         time.sleep(DELAY_BETWEEN_REQUESTS)
@@ -362,17 +362,17 @@ def main():
     # Merge and save results
     if results:
         all_pages = existing_pages + results
-        print(f"\n{'═' * 60}")
+        print(f"\n{'=' * 60}")
         print(f"Saving {len(results)} new pages to {OUTPUT_FILE}...")
 
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             json.dump(all_pages, f, ensure_ascii=False, indent=2)
 
-        print(f"✓ Saved successfully!")
+        print(f"OK Saved successfully!")
         print(f"  Total pages in file: {len(all_pages)}")
 
         # Summary
-        print(f"\n{'─' * 40}")
+        print(f"\n{'-' * 40}")
         print("Summary by category:")
         categories = {}
         for r in all_pages:
@@ -387,7 +387,7 @@ def main():
         print("\nNo new pages were scraped.")
 
     print(f"\nFinished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("═" * 60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

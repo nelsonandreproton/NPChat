@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timezone
 import json
-import ollama
+from openai import OpenAI
 
 from .schemas import (
     ChatRequest, ChatResponse, Source,
@@ -245,11 +245,11 @@ async def health_check():
     """
     Check the health of the chatbot service.
     """
-    ollama_connected = False
+    lmstudio_connected = False
     try:
-        client = ollama.Client(host=config.ollama_base_url)
-        client.list()
-        ollama_connected = True
+        client = OpenAI(base_url=config.lmstudio_base_url, api_key="lm-studio")
+        client.models.list()
+        lmstudio_connected = True
     except Exception:
         pass
 
@@ -260,11 +260,11 @@ async def health_check():
     except Exception:
         pass
 
-    status = "healthy" if ollama_connected and vector_count > 0 else "degraded"
+    status = "healthy" if lmstudio_connected and vector_count > 0 else "degraded"
 
     return HealthResponse(
         status=status,
-        ollama_connected=ollama_connected,
+        ollama_connected=lmstudio_connected,
         vector_store_count=vector_count,
         timestamp=datetime.now(timezone.utc).isoformat()
     )

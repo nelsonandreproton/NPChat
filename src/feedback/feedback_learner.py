@@ -272,10 +272,17 @@ class FeedbackLearner:
                 WHERE query_hash = ?
             """, (new_count, query_hash))
 
+            if new_count >= threshold:
+                cursor.execute("""
+                    UPDATE flagged_queries
+                    SET status = 'pending', flag_reason = ?
+                    WHERE query_hash = ?
+                """, (f"Query has {new_count} negative feedbacks", query_hash))
+
             conn.commit()
             conn.close()
 
-            if new_count >= threshold and status == 'pending':
+            if new_count >= threshold:
                 return f"Query has {new_count} negative feedbacks"
             return None
         else:

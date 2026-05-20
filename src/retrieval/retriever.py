@@ -7,6 +7,12 @@ from .vector_store import VectorStore
 from ..ingestion.embedder import Embedder
 from ..config import config
 
+# Expected output dimension for each known embedding model.
+_KNOWN_DIMENSIONS: dict = {
+    "nomic-embed-text-v1.5": 768,
+    "text-embedding-mxbai-embed-large-v1": 1024,
+}
+
 
 class Retriever:
     """
@@ -18,17 +24,61 @@ class Retriever:
         vector_store: Optional[VectorStore] = None,
         embedder: Optional[Embedder] = None
     ):
-        """
-        Initialize the retriever.
-
-        Args:
-            vector_store: VectorStore instance
-            embedder: Embedder instance
-        """
         self.vector_store = vector_store or VectorStore()
         self.embedder = embedder or Embedder()
         self.top_k = config.top_k
         self.similarity_threshold = config.similarity_threshold
+        self._check_embedding_dimension()
+        self._check_parent_child_consistency()
+
+    def _check_parent_child_consistency(self) -> None:
+        """
+        Warn if use_parent_child_chunking is enabled but the store contains no
+        chunks with a parent_id field — meaning the data was ingested without the
+        flag and parent-child promotion will silently fall back to child text.
+        """
+        if not config.use_parent_child_chunking:
+            return
+        results = self.vector_store._collection.get(limit=5, include=["metadatas"])
+        metadatas = results.get("metadatas") or []
+        if not metadatas:
+            return  # empty store — nothing to validate
+        # Use all() so a partially re-ingested store (mixed old/new chunks) is
+        # correctly flagged instead of silently passing because one chunk has parent_id.
+        has_parent_id = all(
+            (m or {}).get("parent_id") is not None for m in metadatas
+        )
+        if not has_parent_id:
+            print(
+                "\n[WARNING] use_parent_child_chunking is enabled but stored chunks "
+                "have no parent_id.\n"
+                "  ACTION REQUIRED: Run 'Re-ingest All' to rebuild the index "
+                "with parent-child chunking.\n"
+            )
+
+    def _check_embedding_dimension(self) -> None:
+        """
+        Warn if stored embeddings were created with a different model dimension.
+
+        This detects the case where the embedding_model config was changed but
+        the vector store still holds vectors from the old model. Mixing
+        dimensions causes ChromaDB errors; mismatched-but-same-dimension models
+        produce silently wrong results. The user must run Re-ingest All to fix.
+        """
+        stored_dim = self.vector_store.get_stored_embedding_dimension()
+        if stored_dim is None:
+            return  # empty store — fine
+
+        expected_dim = _KNOWN_DIMENSIONS.get(self.embedder.model)
+        if expected_dim is not None and stored_dim != expected_dim:
+            print(
+                f"\n[WARNING] Embedding dimension mismatch detected!\n"
+                f"  Stored embeddings: {stored_dim}-dim "
+                f"(from a different model)\n"
+                f"  Current model '{self.embedder.model}': {expected_dim}-dim\n"
+                f"  ACTION REQUIRED: Run 'Re-ingest All' to rebuild the index "
+                f"with the new embedding model before querying.\n"
+            )
 
     def retrieve(
         self,
