@@ -7,6 +7,7 @@ import sys
 import time
 import threading
 import subprocess
+import json
 from pathlib import Path
 from typing import List
 
@@ -45,22 +46,45 @@ if "ingest_status" not in st.session_state:
 if "scheduler_started" not in st.session_state:
     st.session_state.scheduler_started = False
 
-# Default settings
+_SETTINGS_FILE = Path(__file__).parent.parent / "data" / "app_settings.json"
+_DEFAULT_SETTINGS = {
+    "top_k": 5,
+    "temperature": 0.7,
+    "use_expansion": True,
+    "use_hybrid": True,
+    "use_hyde": False,
+    "use_reranking": True,
+    "use_multi_query": True,
+    "use_contextual_retrieval": False,
+    "use_cache": True,
+    "cache_ttl_hours": 24,
+    "evaluate_confidence": False,
+    "show_confidence": True,
+}
+
+
+def _load_settings() -> dict:
+    try:
+        if _SETTINGS_FILE.exists():
+            saved = json.loads(_SETTINGS_FILE.read_text(encoding="utf-8"))
+            # Merge with defaults so new keys added in future are always present
+            return {**_DEFAULT_SETTINGS, **saved}
+    except Exception:
+        pass
+    return dict(_DEFAULT_SETTINGS)
+
+
+def _save_settings(settings: dict) -> None:
+    try:
+        _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    except Exception as e:
+        st.error(f"Erro ao guardar definições: {e}")
+
+
+# Default settings — loaded from disk on first run of each browser session
 if "settings" not in st.session_state:
-    st.session_state.settings = {
-        "top_k": 5,
-        "temperature": 0.7,
-        "use_expansion": True,
-        "use_hybrid": True,
-        "use_hyde": False,
-        "use_reranking": True,
-        "use_multi_query": True,
-        "use_contextual_retrieval": False,
-        "use_cache": True,
-        "cache_ttl_hours": 24,
-        "evaluate_confidence": False,
-        "show_confidence": True
-    }
+    st.session_state.settings = _load_settings()
 
 # Start background scheduler once per session
 if not st.session_state.scheduler_started:
@@ -631,7 +655,7 @@ def render_settings_tab():
 
     # Save settings button
     if st.button("💾 Save Settings", type="primary"):
-        st.session_state.settings = {
+        new_settings = {
             "top_k": top_k,
             "temperature": temperature,
             "use_expansion": use_expansion,
@@ -645,6 +669,8 @@ def render_settings_tab():
             "evaluate_confidence": evaluate_confidence,
             "show_confidence": show_confidence
         }
+        st.session_state.settings = new_settings
+        _save_settings(new_settings)
         st.success("Definições guardadas!")
 
     st.divider()

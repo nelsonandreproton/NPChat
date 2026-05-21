@@ -53,5 +53,8 @@ logs/
 # Generated index caches
 data/bm25_index.pkl
 
+# Persisted user settings (machine-local)
+data/app_settings.json
+
 # Claude
 .claude/
