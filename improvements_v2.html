@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NPChat — Improvement Roadmap v2 (LM Studio)</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface2: #252842;
+    --border: #2e3250;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b9d;
+    --accent4: #ffb347;
+    --text: #e8eaf6;
+    --text-muted: #8b91c7;
+    --green: #4caf93;
+    --red: #e05c73;
+    --yellow: #f5c842;
+    --blue: #5dade2;
+    --lms: #7b5ea7;
+    --lms-light: #a78bda;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 50%, #1a1025 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% -20%, rgba(123,94,167,0.3) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .header-badge {
+    display: inline-block;
+    background: rgba(123,94,167,0.15);
+    border: 1px solid rgba(123,94,167,0.4);
+    color: var(--lms-light);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.9rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  header h1 {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 800;
+    background: linear-gradient(120deg, #ffffff 0%, #c4b5f5 50%, #7b5ea7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+  header p {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 2rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+  nav a:hover { color: var(--text); background: var(--surface2); border-color: var(--border); }
+
+  /* ─── LAYOUT ─── */
+  main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  section { margin-bottom: 4rem; }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .section-intro {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    max-width: 760px;
+  }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  /* ─── LMS MIGRATION BANNER ─── */
+  .migration-banner {
+    background: linear-gradient(135deg, rgba(123,94,167,0.12) 0%, rgba(108,99,255,0.08) 100%);
+    border: 1px solid rgba(123,94,167,0.4);
+    border-radius: 14px;
+    padding: 1.8rem 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .migration-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: linear-gradient(to bottom, var(--lms), var(--accent));
+  }
+  .migration-banner h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--lms-light);
+  }
+  .migration-banner p { font-size: 0.88rem; color: #c5c9e8; line-height: 1.7; }
+
+  /* ─── COMPARE GRID ─── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+  .compare-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .compare-panel .panel-header {
+    padding: 0.8rem 1.2rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .panel-ollama .panel-header { background: rgba(224,92,115,0.1); color: var(--red); border-bottom: 1px solid rgba(224,92,115,0.2); }
+  .panel-lms .panel-header { background: rgba(123,94,167,0.12); color: var(--lms-light); border-bottom: 1px solid rgba(123,94,167,0.25); }
+  .compare-panel .panel-body { padding: 1.2rem; }
+  .compare-item { display: flex; gap: 0.6rem; font-size: 0.84rem; padding: 0.4rem 0; align-items: flex-start; border-bottom: 1px solid rgba(46,50,80,0.3); }
+  .compare-item:last-child { border-bottom: none; }
+  .compare-item .ci-icon { font-size: 0.9rem; flex-shrink: 0; margin-top: 2px; }
+
+  /* ─── MIGRATION TABLE ─── */
+  .table-wrap { overflow-x: auto; margin-top: 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  td { padding: 0.7rem 1rem; border-bottom: 1px solid rgba(46,50,80,0.5); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  td code { font-family: 'Consolas', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 3px; }
+
+  /* ─── CODE BLOCK ─── */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-family: 'Consolas', 'Cascadia Code', monospace;
+    font-size: 0.78rem;
+    line-height: 1.75;
+    color: #adbac7;
+    overflow-x: auto;
+    margin-top: 0.8rem;
+  }
+  .code-block .c { color: #768390; }
+  .code-block .kw { color: #f47067; }
+  .code-block .fn { color: #6cb6ff; }
+  .code-block .s { color: #96d0ff; }
+  .code-block .n { color: #cae8ff; }
+  .code-block .diff-add { color: #7ee787; }
+  .code-block .diff-del { color: #f47067; }
+
+  /* ─── BADGE ─── */
+  .badge {
+    font-size: 0.7rem; font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge-impact-high { background: rgba(255,107,157,0.15); color: var(--accent3); border: 1px solid rgba(255,107,157,0.25); }
+  .badge-impact-medium { background: rgba(255,179,71,0.15); color: var(--accent4); border: 1px solid rgba(255,179,71,0.25); }
+  .badge-impact-low { background: rgba(93,173,226,0.15); color: var(--blue); border: 1px solid rgba(93,173,226,0.25); }
+  .badge-effort-easy { background: rgba(0,212,170,0.12); color: var(--green); border: 1px solid rgba(0,212,170,0.25); }
+  .badge-effort-medium { background: rgba(245,200,66,0.12); color: var(--yellow); border: 1px solid rgba(245,200,66,0.25); }
+  .badge-effort-hard { background: rgba(224,92,115,0.12); color: var(--red); border: 1px solid rgba(224,92,115,0.25); }
+  .badge-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.8rem 0; }
+  .new-badge {
+    display: inline-block;
+    background: rgba(0,212,170,0.15); color: var(--accent2);
+    font-size: 0.65rem; font-weight: 700;
+    padding: 0.1rem 0.45rem; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-left: 0.5rem; vertical-align: middle;
+  }
+  .lms-badge {
+    display: inline-block;
+    background: rgba(123,94,167,0.15); color: var(--lms-light);
+    font-size: 0.65rem; font-weight: 700;
+    padding: 0.1rem 0.45rem; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-left: 0.5rem; vertical-align: middle;
+  }
+
+  /* ─── IMPROVEMENT CARD ─── */
+  .improvement-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.6rem;
+    margin-bottom: 1.2rem;
+    transition: border-color 0.2s;
+  }
+  .improvement-card:hover { border-color: rgba(108,99,255,0.5); }
+  .improvement-card .card-top {
+    display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap;
+  }
+  .improvement-card .card-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+  }
+  .icon-purple { background: rgba(108,99,255,0.15); }
+  .icon-green { background: rgba(0,212,170,0.15); }
+  .icon-pink { background: rgba(255,107,157,0.15); }
+  .icon-yellow { background: rgba(255,179,71,0.15); }
+  .icon-blue { background: rgba(93,173,226,0.15); }
+  .icon-lms { background: rgba(123,94,167,0.15); }
+  .improvement-card .card-title { flex: 1; }
+  .improvement-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.2rem; }
+  .improvement-card .subtitle { font-size: 0.82rem; color: var(--text-muted); }
+  .improvement-card .description {
+    font-size: 0.88rem; color: #c5c9e8; line-height: 1.65; margin-bottom: 0.8rem;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     ROADMAP — SPLIT TASK CARDS
+  ═══════════════════════════════════════════════════ */
+  .roadmap-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .roadmap-item-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.4rem;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .roadmap-item-header .ri-num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(108,99,255,0.2);
+    border: 1px solid rgba(108,99,255,0.4);
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .roadmap-item-header .ri-title { font-size: 1rem; font-weight: 700; flex: 1; }
+  .roadmap-item-header .ri-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .roadmap-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  @media (max-width: 680px) { .roadmap-body { grid-template-columns: 1fr; } }
+  .roadmap-auto, .roadmap-manual {
+    padding: 1.2rem 1.4rem;
+  }
+  .roadmap-auto { border-right: 1px solid var(--border); }
+  @media (max-width: 680px) { .roadmap-auto { border-right: none; border-bottom: 1px solid var(--border); } }
+  .task-col-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .task-col-header.auto { color: var(--green); }
+  .task-col-header.manual { color: var(--yellow); }
+  .task-list { list-style: none; }
+  .task-list li {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.83rem;
+    color: #c5c9e8;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(46,50,80,0.3);
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .task-list li:last-child { border-bottom: none; }
+  .task-list li .bullet-auto {
+    color: var(--green); font-size: 1rem; flex-shrink: 0; margin-top: 1px;
+  }
+  .task-list li .bullet-manual {
+    color: var(--yellow); font-size: 1rem; flex-shrink: 0; margin-top: 1px;
+  }
+  .task-file {
+    font-family: 'Consolas', monospace;
+    font-size: 0.73rem;
+    color: var(--accent);
+    background: rgba(108,99,255,0.08);
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .task-cmd {
+    font-family: 'Consolas', monospace;
+    font-size: 0.73rem;
+    color: var(--lms-light);
+    background: rgba(123,94,167,0.1);
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
+  }
+  .roadmap-note {
+    padding: 0.6rem 1.4rem;
+    background: rgba(0,0,0,0.2);
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  /* ─── PHASE HEADERS ─── */
+  .phase-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 2.5rem 0 1.5rem;
+  }
+  .phase-divider .ph-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 0.35rem 1rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .phase-1-label { background: rgba(255,107,157,0.12); color: var(--accent3); border: 1px solid rgba(255,107,157,0.25); }
+  .phase-2-label { background: rgba(108,99,255,0.12); color: var(--accent); border: 1px solid rgba(108,99,255,0.25); }
+  .phase-3-label { background: rgba(0,212,170,0.10); color: var(--accent2); border: 1px solid rgba(0,212,170,0.2); }
+  .phase-divider::before, .phase-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ─── MODEL TABLE ─── */
+  .model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .model-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .model-card.recommended { border-color: rgba(0,212,170,0.45); }
+  .model-card.recommended::before {
+    content: '★ RECOMMENDED';
+    position: absolute; top: 0; right: 0;
+    background: rgba(0,212,170,0.15);
+    color: var(--accent2);
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 0 10px 0 6px;
+  }
+  .model-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.2rem; }
+  .model-card .model-meta { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.6rem; }
+  .model-card .model-score {
+    font-size: 1.1rem; font-weight: 800;
+    margin-bottom: 0.1rem;
+  }
+  .model-card .model-desc { font-size: 0.78rem; color: #b0b4d8; }
+
+  /* ─── FLOW DIAGRAM ─── */
+  .flow-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .flow-wrap h3 {
+    font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 1.2rem;
+  }
+  .flow {
+    display: flex; align-items: stretch; gap: 0;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .flow-step {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.7rem 0.9rem;
+    text-align: center; min-width: 105px; flex: 1; max-width: 145px;
+  }
+  .flow-step .step-icon { font-size: 1.2rem; margin-bottom: 0.2rem; }
+  .flow-step .step-label { font-size: 0.75rem; font-weight: 600; }
+  .flow-step .step-detail { font-size: 0.67rem; color: var(--text-muted); margin-top: 0.15rem; }
+  .flow-step.new-s { border-color: var(--accent2); background: rgba(0,212,170,0.05); }
+  .flow-step.lms-s { border-color: var(--lms); background: rgba(123,94,167,0.08); }
+  .flow-arrow { display: flex; align-items: center; padding: 0 0.3rem; color: var(--accent); font-size: 1.1rem; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 2rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">Improvement Roadmap v2 · LM Studio Migration · May 2025</div>
+  <h1>NPChat Roadmap v2</h1>
+  <p>Migrating from Ollama to LM Studio + all RAG improvements. Each roadmap item is split into what Claude does automatically vs. what you do manually.</p>
+</header>
+
+<nav>
+  <a href="#migration">LM Studio Migration</a>
+  <a href="#models">Model Picks</a>
+  <a href="#architecture">New Architecture</a>
+  <a href="#roadmap">Roadmap</a>
+  <a href="#summary">Summary Table</a>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- LM STUDIO MIGRATION                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="migration">
+  <h2><span>🔄</span> Ollama → LM Studio Migration</h2>
+
+  <div class="migration-banner">
+    <h3>Why this migration is clean</h3>
+    <p>
+      LM Studio exposes an <strong>OpenAI-compatible REST API</strong> at <code>http://localhost:1234/v1</code>.
+      Your codebase uses <code>ollama.Client</code> directly in 5 files — but all calls map 1:1 to OpenAI SDK equivalents.
+      The migration is a library swap (<code>ollama</code> → <code>openai</code>) plus a URL change.
+      No architectural changes needed. All RAG logic, ChromaDB, BM25, caching, and feedback remain identical.
+    </p>
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-panel panel-ollama">
+      <div class="panel-header">⚪ Ollama (current)</div>
+      <div class="panel-body">
+        <div class="compare-item"><span class="ci-icon">🔌</span><span>Separate background service, runs at port 11434</span></div>
+        <div class="compare-item"><span class="ci-icon">📦</span><span>Models managed via <code>ollama pull</code> CLI</span></div>
+        <div class="compare-item"><span class="ci-icon">🖥️</span><span>No GUI — terminal only</span></div>
+        <div class="compare-item"><span class="ci-icon">📐</span><span>Custom Python SDK (<code>ollama</code> package)</span></div>
+        <div class="compare-item"><span class="ci-icon">🔧</span><span>Health check via <code>ollama.Client.list()</code></span></div>
+        <div class="compare-item"><span class="ci-icon">⚡</span><span>Model switching requires CLI commands</span></div>
+        <div class="compare-item"><span class="ci-icon">📊</span><span>No built-in token/performance stats UI</span></div>
+      </div>
+    </div>
+    <div class="compare-panel panel-lms">
+      <div class="panel-header">🟣 LM Studio (target)</div>
+      <div class="panel-body">
+        <div class="compare-item"><span class="ci-icon">🔌</span><span>Local server at port 1234, OpenAI-compatible</span></div>
+        <div class="compare-item"><span class="ci-icon">📦</span><span>Models managed via GUI — search, download, switch</span></div>
+        <div class="compare-item"><span class="ci-icon">🖥️</span><span>Full desktop GUI with chat, model browser, settings</span></div>
+        <div class="compare-item"><span class="ci-icon">📐</span><span>Standard <code>openai</code> Python SDK — industry standard</span></div>
+        <div class="compare-item"><span class="ci-icon">🔧</span><span>Health check via <code>GET /v1/models</code></span></div>
+        <div class="compare-item"><span class="ci-icon">⚡</span><span>Model switching in GUI — hot swap without restart</span></div>
+        <div class="compare-item"><span class="ci-icon">📊</span><span>Built-in token stats, TTFT, speed (tok/s) in GUI</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- File-by-file migration table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Current (Ollama)</th>
+          <th>Change to (LM Studio)</th>
+          <th>Scope</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>src/config.py:21-23</code></td>
+          <td><code>ollama_base_url = "http://localhost:11434"</code><br><code>llm_model = "gemma2:2b"</code><br><code>embedding_model = "nomic-embed-text"</code></td>
+          <td><code>lmstudio_base_url = "http://localhost:1234/v1"</code><br><code>llm_model = "qwen2.5-3b"</code><br><code>embedding_model = "text-embedding-nomic-embed-text-v1.5"</code></td>
+          <td>Config only</td>
+        </tr>
+        <tr>
+          <td><code>src/generation/llm.py</code></td>
+          <td><code>import ollama</code><br><code>ollama.Client(host=...)</code><br><code>client.chat(model=..., messages=...)</code></td>
+          <td><code>from openai import OpenAI</code><br><code>OpenAI(base_url=..., api_key="lm-studio")</code><br><code>client.chat.completions.create(...)</code></td>
+          <td>Rewrite class</td>
+        </tr>
+        <tr>
+          <td><code>src/ingestion/embedder.py</code></td>
+          <td><code>import ollama</code><br><code>client.embeddings(model=..., prompt=...)</code></td>
+          <td><code>from openai import OpenAI</code><br><code>client.embeddings.create(model=..., input=...)</code></td>
+          <td>Rewrite class</td>
+        </tr>
+        <tr>
+          <td><code>src/retrieval/query_expansion.py</code></td>
+          <td><code>import ollama</code><br><code>client.generate(model=..., prompt=...)</code></td>
+          <td><code>from openai import OpenAI</code><br><code>client.chat.completions.create(...)</code></td>
+          <td>Rewrite calls</td>
+        </tr>
+        <tr>
+          <td><code>src/generation/enhanced_rag_chain.py:220</code></td>
+          <td><code>ollama.Client(...).generate(prompt=eval_prompt)</code></td>
+          <td><code>client.chat.completions.create(...)</code></td>
+          <td>Single method</td>
+        </tr>
+        <tr>
+          <td><code>src/api/routes.py:250-252</code></td>
+          <td><code>ollama.Client(...).list()</code> for health check</td>
+          <td><code>GET /v1/models</code> via <code>openai</code> client</td>
+          <td>Health endpoint</td>
+        </tr>
+        <tr>
+          <td><code>requirements.txt</code></td>
+          <td><code>ollama>=0.4.0</code><br><code>langchain-ollama>=0.2.0</code></td>
+          <td><code>openai>=1.0.0</code></td>
+          <td>Dependency swap</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Key diff -->
+  <div class="improvement-card" style="margin-top:1.5rem;">
+    <div class="card-top">
+      <div class="card-icon icon-lms">🔧</div>
+      <div class="card-title">
+        <h3>Core API Call Translation</h3>
+        <div class="subtitle">Every Ollama call maps directly to an OpenAI SDK equivalent</div>
+      </div>
+    </div>
+    <div class="code-block">
+<span class="c"># ── GENERATION (llm.py) ────────────────────────────────────</span>
+<span class="diff-del">- response = client.chat(model=config.llm_model,</span>
+<span class="diff-del">-     messages=[{"role": "system", "content": system},</span>
+<span class="diff-del">-               {"role": "user",   "content": user}])</span>
+<span class="diff-del">- return response["message"]["content"]</span>
+
+<span class="diff-add">+ response = client.chat.completions.create(</span>
+<span class="diff-add">+     model=config.llm_model,</span>
+<span class="diff-add">+     messages=[{"role": "system", "content": system},</span>
+<span class="diff-add">+               {"role": "user",   "content": user}])</span>
+<span class="diff-add">+ return response.choices[0].message.content</span>
+
+<span class="c"># ── EMBEDDINGS (embedder.py) ────────────────────────────────</span>
+<span class="diff-del">- resp = client.embeddings(model=config.embedding_model, prompt=text)</span>
+<span class="diff-del">- return resp["embedding"]</span>
+
+<span class="diff-add">+ resp = client.embeddings.create(model=config.embedding_model, input=text)</span>
+<span class="diff-add">+ return resp.data[0].embedding</span>
+
+<span class="c"># ── HEALTH CHECK (routes.py) ────────────────────────────────</span>
+<span class="diff-del">- ollama.Client(host=config.ollama_base_url).list()</span>
+
+<span class="diff-add">+ client.models.list()  # GET /v1/models — works with LM Studio</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODEL PICKS FOR LM STUDIO                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="models">
+  <h2><span>🤖</span> LM Studio Model Picks</h2>
+  <p class="section-intro">Search these model names directly in LM Studio's model browser. GGUF format, all free.</p>
+
+  <h3 style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.8rem;">LLM — Chat / Generation</h3>
+  <div class="model-grid">
+    <div class="model-card recommended">
+      <h4>Qwen2.5-3B-Instruct</h4>
+      <div class="model-meta">~1.9 GB · Q4_K_M · CPU-friendly</div>
+      <div class="model-score" style="color:var(--green)">MMLU 65%</div>
+      <div class="model-desc">Best small model for instruction following + Q&A in 2025. Fast on CPU. Excellent Portuguese.</div>
+    </div>
+    <div class="model-card">
+      <h4>Llama-3.2-3B-Instruct</h4>
+      <div class="model-meta">~2.0 GB · Q4_K_M · CPU-friendly</div>
+      <div class="model-score" style="color:var(--yellow)">MMLU 58%</div>
+      <div class="model-desc">Meta's latest small model. Better instruction following than gemma2:2b.</div>
+    </div>
+    <div class="model-card">
+      <h4>Qwen2.5-7B-Instruct</h4>
+      <div class="model-meta">~4.7 GB · Q4_K_M · needs ≥8GB RAM</div>
+      <div class="model-score" style="color:var(--green)">MMLU 72%</div>
+      <div class="model-desc">Near GPT-3.5 quality. Use if you have RAM to spare — noticeably better answers.</div>
+    </div>
+    <div class="model-card">
+      <h4>Phi-3.5-mini-instruct</h4>
+      <div class="model-meta">~2.2 GB · Q4_K_M · CPU-friendly</div>
+      <div class="model-score" style="color:var(--yellow)">MMLU 61%</div>
+      <div class="model-desc">Microsoft. Very fast, good reasoning. Worth benchmarking against Qwen2.5-3B.</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin:1.5rem 0 0.8rem;">Embedding Model</h3>
+  <div class="model-grid">
+    <div class="model-card recommended">
+      <h4>nomic-embed-text-v1.5</h4>
+      <div class="model-meta">~274 MB · built for LM Studio</div>
+      <div class="model-score" style="color:var(--green)">MTEB 62.4</div>
+      <div class="model-desc">Drop-in replacement for your current nomic-embed-text. No re-index needed if same model version. Search "nomic-embed-text" in LM Studio.</div>
+    </div>
+    <div class="model-card">
+      <h4>mxbai-embed-large-v1</h4>
+      <div class="model-meta">~700 MB · English-optimised</div>
+      <div class="model-score" style="color:var(--green)">MTEB 64.7 (+2.3)</div>
+      <div class="model-desc">Best free English embedding model. Requires ChromaDB re-index after switch.</div>
+    </div>
+    <div class="model-card">
+      <h4>bge-m3</h4>
+      <div class="model-meta">~1.2 GB · multilingual</div>
+      <div class="model-score" style="color:var(--yellow)">MTEB 63.6</div>
+      <div class="model-desc">Best for Portuguese + English mixed content. Dense + sparse vectors built-in.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- NEW ARCHITECTURE                                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="architecture">
+  <h2><span>🏗️</span> New Architecture Overview</h2>
+
+  <div class="flow-wrap">
+    <h3>Query Pipeline — After All Improvements</h3>
+    <div class="flow">
+      <div class="flow-step lms-s">
+        <div class="step-icon">🟣</div>
+        <div class="step-label">LM Studio</div>
+        <div class="step-detail">OpenAI API<br>port 1234</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:0.3rem;margin:0.5rem 0;flex-wrap:wrap;">
+      <div class="flow-step" style="max-width:200px;text-align:left;padding:0.6rem 0.9rem;">
+        <div class="step-label">💬 User Query</div>
+        <div class="step-detail">Sanitized, max 1000 chars</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="max-width:200px;text-align:left;padding:0.6rem 0.9rem;">
+        <div class="step-label">🔍 Query Expansion</div>
+        <div class="step-detail">Expanded + 3 multi_query variants (now wired)</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="max-width:200px;text-align:left;padding:0.6rem 0.9rem;">
+        <div class="step-label">⚡ Hybrid × 4</div>
+        <div class="step-detail">Vector + BM25 per variant → union</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step new-s" style="max-width:200px;text-align:left;padding:0.6rem 0.9rem;">
+        <div class="step-label">🎯 Reranker NEW</div>
+        <div class="step-detail">FlashRank cross-encoder → top-5</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step new-s" style="max-width:200px;text-align:left;padding:0.6rem 0.9rem;">
+        <div class="step-label">📌 Contextual Chunks NEW</div>
+        <div class="step-detail">Context sentence prepended at ingest</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step lms-s" style="max-width:200px;text-align:left;padding:0.6rem 0.9rem;">
+        <div class="step-label">🟣 qwen2.5-3b</div>
+        <div class="step-detail">via LM Studio OpenAI API</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ROADMAP — SPLIT CARDS                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="roadmap">
+  <h2><span>🗺️</span> Implementation Roadmap</h2>
+  <p class="section-intro">
+    Each item is split into
+    <strong style="color:var(--green)">🤖 Claude does automatically</strong> (code changes, file edits, config updates)
+    and
+    <strong style="color:var(--yellow)">👤 You do manually</strong> (install software, download models, start services, test in browser).
+  </p>
+
+  <!-- ─── PHASE 1 ─── -->
+  <div class="phase-divider">
+    <span class="ph-label phase-1-label">🔥 Phase 1 — Week 1 · Foundation</span>
+  </div>
+
+  <!-- ITEM 1: LM Studio migration -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">1</div>
+      <div class="ri-title">Migrate Ollama → LM Studio <span class="lms-badge">LM Studio</span></div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Rewrite <span class="task-file">src/generation/llm.py</span> — replace <code>ollama.Client</code> with <code>openai.OpenAI</code>, update chat call signature</span></li>
+          <li><span class="bullet-auto">▸</span><span>Rewrite <span class="task-file">src/ingestion/embedder.py</span> — update embeddings call to <code>client.embeddings.create()</code></span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/retrieval/query_expansion.py</span> — replace 3 <code>client.generate()</code> calls with chat completions</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/generation/enhanced_rag_chain.py:220</span> — fix confidence eval Ollama call</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/api/routes.py:250</span> — rewrite health check to use <code>client.models.list()</code></span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/config.py</span> — rename <code>ollama_base_url</code> → <code>lmstudio_base_url</code>, set to <code>http://localhost:1234/v1</code></span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">requirements.txt</span> — swap <code>ollama>=0.4.0</code> and <code>langchain-ollama>=0.2.0</code> for <code>openai>=1.0.0</code></span></li>
+          <li><span class="bullet-auto">▸</span><span>Run existing test suite to verify no regressions</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Download and install <strong>LM Studio</strong> from <span class="task-cmd">lmstudio.ai</span></span></li>
+          <li><span class="bullet-manual">▸</span><span>In LM Studio → Search → download <span class="task-cmd">Qwen2.5-3B-Instruct Q4_K_M</span></span></li>
+          <li><span class="bullet-manual">▸</span><span>In LM Studio → Search → download <span class="task-cmd">nomic-embed-text-v1.5</span> (embedding model)</span></li>
+          <li><span class="bullet-manual">▸</span><span>In LM Studio → Developer tab → Start Server (port 1234)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Load both models in LM Studio (LLM + embedding model must both be active)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Run <span class="task-cmd">pip install -r requirements.txt</span> after Claude updates it</span></li>
+          <li><span class="bullet-manual">▸</span><span>Test the app: ask a question and verify a response comes back</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">💡 LM Studio's server must be running before starting the Python app. LM Studio auto-starts the embedding model when a request hits <code>/v1/embeddings</code> — no separate startup needed.</div>
+  </div>
+
+  <!-- ITEM 2: LLM upgrade -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">2</div>
+      <div class="ri-title">Upgrade LLM model name in config <span class="lms-badge">LM Studio</span></div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-medium">Medium Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/config.py</span> <code>llm_model</code> to match exact LM Studio model identifier</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">app/main_app.py</span> settings tab — remove Ollama model list references, display LM Studio model name</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>In LM Studio, load the model and check its exact model ID (shown at top of chat window, e.g. <span class="task-cmd">qwen2.5-3b-instruct</span>)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Tell Claude the exact model ID so config can be updated accurately</span></li>
+          <li><span class="bullet-manual">▸</span><span>Verify first chat response quality vs. previous gemma2:2b output</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">⚠️ LM Studio model identifiers include the quantization suffix (e.g. <code>qwen2.5-3b-instruct-q4_k_m</code>). The exact ID is shown in LM Studio's server log when a request arrives — use that string in config.</div>
+  </div>
+
+  <!-- ITEM 3: Cross-encoder reranking -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">3</div>
+      <div class="ri-title">Cross-Encoder Reranking (FlashRank)</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">src/retrieval/reranker.py</span> with <code>ChunkReranker</code> class wrapping FlashRank</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/generation/enhanced_rag_chain.py</span> — instantiate reranker, call after hybrid retrieve (retrieve top-20, rerank to top-5)</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add <code>flashrank</code> to <span class="task-file">requirements.txt</span></span></li>
+          <li><span class="bullet-auto">▸</span><span>Add <code>use_reranking: bool = True</code> toggle to <span class="task-file">src/config.py</span></span></li>
+          <li><span class="bullet-auto">▸</span><span>Expose reranking toggle in Streamlit Settings tab</span></li>
+          <li><span class="bullet-auto">▸</span><span>Write unit tests for <code>ChunkReranker</code></span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Run <span class="task-cmd">pip install flashrank</span> — it downloads the reranker model (~23MB) on first use</span></li>
+          <li><span class="bullet-manual">▸</span><span>Ask a few questions and verify response quality improved</span></li>
+          <li><span class="bullet-manual">▸</span><span>Check response time in Analytics tab — reranking adds ~20ms on CPU</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">💡 First request after install will take ~3s to download and cache <code>ms-marco-MiniLM-L-12-v2</code>. Subsequent requests: sub-20ms.</div>
+  </div>
+
+  <!-- ITEM 4: Wire multi_query -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">4</div>
+      <div class="ri-title">Wire multi_query() into RAG chain <span class="new-badge">Already coded</span></div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-medium">Medium Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/generation/enhanced_rag_chain.py</span> — call <code>multi_query()</code>, union results, deduplicate by chunk ID before reranking</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add <code>use_multi_query: bool = True</code> to <span class="task-file">src/config.py</span></span></li>
+          <li><span class="bullet-auto">▸</span><span>Expose toggle in Streamlit Settings tab alongside existing toggles</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Nothing — this is pure code change. Verify it runs without errors after Claude updates it.</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">💡 multi_query() makes 3 extra LLM calls per query (to generate variants). Latency increases ~300ms. Combine with the reranker to cull the extra results — net effect is better recall, same top-5 quality.</div>
+  </div>
+
+  <!-- ITEM 5: Content hash dedup -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">5</div>
+      <div class="ri-title">Content Hash Deduplication at Ingestion</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-medium">Medium Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/ingestion/ingest.py</span> — compute <code>sha256(chunk_text)[:16]</code> per chunk, store as <code>content_hash</code> metadata in ChromaDB</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add hash comparison before embedding — skip chunk if URL + hash already in collection</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/ingestion/chunker.py</span> — include hash in returned chunk dict</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Run a full re-ingest once after the change to populate hashes on existing chunks</span></li>
+          <li><span class="bullet-manual">▸</span><span>Verify the "Chunks added" count is 0 on a second re-ingest of unchanged content</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITEM 6: Persist BM25 -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">6</div>
+      <div class="ri-title">Persist BM25 Index to Disk</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-low">Low Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/retrieval/hybrid_retriever.py</span> — serialize BM25 index with <code>pickle</code> to <code>data/bm25_index.pkl</code> after build</span></li>
+          <li><span class="bullet-auto">▸</span><span>Load from cache on startup if doc count matches, rebuild otherwise</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add <code>data/bm25_index.pkl</code> to <span class="task-file">.gitignore</span></span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Nothing — verify startup is faster after first run creates the cache file.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── PHASE 2 ─── -->
+  <div class="phase-divider">
+    <span class="ph-label phase-2-label">⚡ Phase 2 — Week 2–3 · Major Improvements</span>
+  </div>
+
+  <!-- ITEM 7: Contextual retrieval -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">7</div>
+      <div class="ri-title">Contextual Retrieval (Anthropic 2024)</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High Impact</span>
+        <span class="badge badge-effort-medium">Medium</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Add <code>_add_context(full_doc, chunk, title)</code> method to <span class="task-file">src/ingestion/chunker.py</span></span></li>
+          <li><span class="bullet-auto">▸</span><span>Call LM Studio (via updated OpenAI client) to generate 1–2 sentence context per chunk at ingestion time</span></li>
+          <li><span class="bullet-auto">▸</span><span>Store both original chunk and contextualized chunk text in ChromaDB — embed the contextualized version</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add <code>use_contextual_retrieval: bool = True</code> to <span class="task-file">src/config.py</span></span></li>
+          <li><span class="bullet-auto">▸</span><span>Update ingestion stats logging to show contextualization progress</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span><strong>Clear ChromaDB</strong> and re-run full ingestion — existing chunks don't have context prepended</span></li>
+          <li><span class="bullet-manual">▸</span><span>Be patient: ingestion takes longer (1 LLM call per chunk). For ~200 chunks: ~5–15 minutes depending on hardware</span></li>
+          <li><span class="bullet-manual">▸</span><span>In Streamlit Settings → "Clear Vector Store" → then trigger "Scrape & Ingest All"</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">⚠️ This requires a full re-index. Only run during low-traffic periods. Once done, retrieval failures drop ~49% according to Anthropic's benchmark.</div>
+  </div>
+
+  <!-- ITEM 8: Better embedding model -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">8</div>
+      <div class="ri-title">Switch to mxbai-embed-large Embedding Model <span class="lms-badge">LM Studio</span></div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-medium">Medium Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/config.py</span> <code>embedding_model</code> to match LM Studio's mxbai model identifier</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>In LM Studio → Search → download <span class="task-cmd">mxbai-embed-large-v1</span></span></li>
+          <li><span class="bullet-manual">▸</span><span>Load it as the active embedding model in LM Studio Developer tab</span></li>
+          <li><span class="bullet-manual">▸</span><span><strong>Clear ChromaDB and re-index</strong> — vector dimensions differ between models, old index is incompatible</span></li>
+          <li><span class="bullet-manual">▸</span><span>Note exact model identifier from LM Studio server log, tell Claude to update config</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">⚠️ Do this <strong>after</strong> Contextual Retrieval (item 7) — otherwise you'll re-index twice. Combine both changes into one re-ingest run.</div>
+  </div>
+
+  <!-- ITEM 9: Parent-child chunking -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">9</div>
+      <div class="ri-title">Parent-Child Chunk Architecture</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High Impact</span>
+        <span class="badge badge-effort-medium">Medium</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/ingestion/chunker.py</span> — generate both child (300 chars) and parent (1200 chars) chunks, add <code>parent_id</code> metadata to children</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/retrieval/vector_store.py</span> — add <code>get_by_ids(ids)</code> method</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/generation/enhanced_rag_chain.py</span> — after reranking children, look up parent chunks for LLM prompt</span></li>
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/ingestion/ingest.py</span> — store parent chunks alongside children at ingestion</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Clear ChromaDB and re-ingest — chunk schema changes require fresh index</span></li>
+          <li><span class="bullet-manual">▸</span><span>Verify in ChromaDB Browser tab that chunks have <code>parent_id</code> metadata field</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITEM 10: RAGAS evaluation -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">10</div>
+      <div class="ri-title">RAGAS Evaluation Harness</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">scripts/build_eval_set.py</span> — export (query, answer, context, ground_truth) tuples from <code>data/feedback_learning.db</code> where <code>positive_count >= 2</code></span></li>
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">scripts/run_ragas_eval.py</span> — run faithfulness + answer_relevancy + context_recall using LM Studio as judge (via openai client)</span></li>
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">scripts/regression_test.py</span> — re-retrieve positive-feedback queries, check chunk recall rate</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add <code>ragas</code> and <code>langchain-openai</code> to <span class="task-file">requirements.txt</span></span></li>
+          <li><span class="bullet-auto">▸</span><span>Integrate regression test into existing pytest suite</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Run <span class="task-cmd">pip install ragas langchain-openai</span></span></li>
+          <li><span class="bullet-manual">▸</span><span>Run <span class="task-cmd">python scripts/build_eval_set.py</span> to generate test data from existing feedback</span></li>
+          <li><span class="bullet-manual">▸</span><span>Run <span class="task-cmd">python scripts/run_ragas_eval.py</span> and save the baseline scores (faithfulness, relevancy, recall) — these are your benchmark before further improvements</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">💡 Needs at least 10 positive-feedback queries in feedback_learning.db to generate a meaningful eval set. Run the chatbot for a while first if the DB is fresh.</div>
+  </div>
+
+  <!-- ITEM 11: Structured confidence -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">11</div>
+      <div class="ri-title">Structured JSON Output for Confidence Scoring</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-low">Low Impact</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/generation/enhanced_rag_chain.py:220</span> — add <code>response_format={"type": "json_object"}</code> to confidence scoring call</span></li>
+          <li><span class="bullet-auto">▸</span><span>Replace fragile <code>float(score_str)</code> with <code>json.loads(content)["score"]</code></span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Verify LM Studio's loaded model supports JSON mode (most Instruct models do) — test via LM Studio chat with a JSON prompt</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── PHASE 3 ─── -->
+  <div class="phase-divider">
+    <span class="ph-label phase-3-label">🔭 Phase 3 — Month 2+ · Advanced</span>
+  </div>
+
+  <!-- ITEM 12: bge-m3 -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">12</div>
+      <div class="ri-title">bge-m3 Multilingual Embeddings (for Portuguese content) <span class="lms-badge">LM Studio</span></div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High (PT)</span>
+        <span class="badge badge-effort-easy">Easy</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Update <span class="task-file">src/config.py</span> <code>embedding_model</code> to bge-m3 identifier</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>In LM Studio → Search → download <span class="task-cmd">bge-m3</span> (~1.2 GB)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Load as active embedding model in LM Studio Developer tab</span></li>
+          <li><span class="bullet-manual">▸</span><span>Clear ChromaDB and re-ingest (different vector dimensions)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Run RAGAS eval after re-index to compare Portuguese query scores vs. mxbai baseline</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">💡 bge-m3 is worth it if RAGAS context_recall is lower for Portuguese queries. Run the eval first to confirm the problem before switching.</div>
+  </div>
+
+  <!-- ITEM 13: LightRAG -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">13</div>
+      <div class="ri-title">LightRAG Graph Hybrid (when corpus &gt; 200 docs)</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High (at scale)</span>
+        <span class="badge badge-effort-hard">Hard</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">src/retrieval/graph_retriever.py</span> wrapping LightRAG with LM Studio as LLM backend</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add graph retrieval path to <span class="task-file">enhanced_rag_chain.py</span> — use for relationship queries, standard RAG for factual queries</span></li>
+          <li><span class="bullet-auto">▸</span><span>Add <code>lightrag-hku</code> and <code>networkx</code> to <span class="task-file">requirements.txt</span></span></li>
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">scripts/build_graph_index.py</span> — extract entities/relationships from all blog posts</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Run <span class="task-cmd">pip install lightrag-hku networkx</span></span></li>
+          <li><span class="bullet-manual">▸</span><span>Run <span class="task-cmd">python scripts/build_graph_index.py</span> — takes 10–30 min for full corpus (LLM extracts entities)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Test relationship queries: <em>"What industries has Near Partner worked in?"</em>, <em>"How do their AI services connect to their Salesforce work?"</em></span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">💡 Defer this until you have 200+ documents in the corpus. For the current blog post count, standard RAG + reranking delivers better ROI.</div>
+  </div>
+
+  <!-- ITEM 14: Fine-tuning -->
+  <div class="roadmap-item">
+    <div class="roadmap-item-header">
+      <div class="ri-num">14</div>
+      <div class="ri-title">Domain Fine-Tuning on Feedback Data (long-term)</div>
+      <div class="ri-badges">
+        <span class="badge badge-impact-high">High (long-term)</span>
+        <span class="badge badge-effort-hard">Hard</span>
+      </div>
+    </div>
+    <div class="roadmap-body">
+      <div class="roadmap-auto">
+        <div class="task-col-header auto">🤖 Claude does automatically</div>
+        <ul class="task-list">
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">scripts/export_training_pairs.py</span> — export (query, answer) pairs from feedback DB as Alpaca/ShareGPT JSONL format</span></li>
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">scripts/finetune_config.yaml</span> for LlamaFactory or Unsloth</span></li>
+          <li><span class="bullet-auto">▸</span><span>Create <span class="task-file">docs/finetuning_guide.md</span> with step-by-step instructions</span></li>
+        </ul>
+      </div>
+      <div class="roadmap-manual">
+        <div class="task-col-header manual">👤 You do manually</div>
+        <ul class="task-list">
+          <li><span class="bullet-manual">▸</span><span>Accumulate 500+ positive-feedback queries first (takes months of usage)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Install <span class="task-cmd">unsloth</span> or <span class="task-cmd">LlamaFactory</span> (GPU recommended but CPU-capable)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Run fine-tuning job (4–24h depending on hardware)</span></li>
+          <li><span class="bullet-manual">▸</span><span>Export GGUF and load in LM Studio, compare vs base model on eval set</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="roadmap-note">💡 Start the data collection now (feedback loop is already in place). Fine-tuning becomes viable once you have enough training signal.</div>
+  </div>
+
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SUMMARY TABLE                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="summary">
+  <h2><span>📋</span> Summary Table</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Improvement</th>
+          <th>Impact</th>
+          <th>Effort</th>
+          <th>🤖 Auto</th>
+          <th>👤 Manual</th>
+          <th>Phase</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">1</td>
+          <td>Ollama → LM Studio migration</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Rewrite 5 files + requirements</td>
+          <td>Install LM Studio, download models, start server</td>
+          <td style="color:var(--accent3)">P1</td>
+        </tr>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">2</td>
+          <td>Upgrade LLM to qwen2.5-3b</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Update config.py model name</td>
+          <td>Download model in LM Studio, provide exact ID</td>
+          <td style="color:var(--accent3)">P1</td>
+        </tr>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">3</td>
+          <td>Cross-encoder reranking (FlashRank)</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>New reranker.py + wire into chain</td>
+          <td>pip install flashrank, verify quality</td>
+          <td style="color:var(--accent3)">P1</td>
+        </tr>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">4</td>
+          <td>Wire existing multi_query()</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Update enhanced_rag_chain.py only</td>
+          <td>Nothing</td>
+          <td style="color:var(--accent3)">P1</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Content hash deduplication</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Update ingest.py + chunker.py</td>
+          <td>Run one full re-ingest</td>
+          <td style="color:var(--accent3)">P1</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Persist BM25 index</td>
+          <td><span class="badge badge-impact-low">Low</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Update hybrid_retriever.py + .gitignore</td>
+          <td>Nothing</td>
+          <td style="color:var(--accent3)">P1</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Contextual retrieval</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-medium">Medium</span></td>
+          <td>Update chunker.py + ingest.py</td>
+          <td>Clear ChromaDB + full re-ingest (~15min)</td>
+          <td style="color:var(--accent)">P2</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>mxbai-embed-large embedding</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Update config.py embedding_model</td>
+          <td>Download in LM Studio + re-index</td>
+          <td style="color:var(--accent)">P2</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>Parent-child chunks</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-medium">Medium</span></td>
+          <td>Update chunker + vector_store + chain</td>
+          <td>Clear ChromaDB + full re-ingest</td>
+          <td style="color:var(--accent)">P2</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td>RAGAS evaluation harness</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>New scripts/ + add to test suite</td>
+          <td>pip install, run eval scripts, save baseline</td>
+          <td style="color:var(--accent)">P2</td>
+        </tr>
+        <tr>
+          <td>11</td>
+          <td>Structured confidence output</td>
+          <td><span class="badge badge-impact-low">Low</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Update enhanced_rag_chain.py:220</td>
+          <td>Verify model supports JSON mode</td>
+          <td style="color:var(--accent)">P2</td>
+        </tr>
+        <tr>
+          <td>12</td>
+          <td>bge-m3 multilingual embeddings</td>
+          <td><span class="badge badge-impact-high">High (PT)</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Update config.py</td>
+          <td>Download in LM Studio + re-index</td>
+          <td style="color:var(--accent2)">P3</td>
+        </tr>
+        <tr>
+          <td>13</td>
+          <td>LightRAG graph hybrid</td>
+          <td><span class="badge badge-impact-high">High (scale)</span></td>
+          <td><span class="badge badge-effort-hard">Hard</span></td>
+          <td>New graph_retriever.py + scripts</td>
+          <td>pip install, run graph build, test queries</td>
+          <td style="color:var(--accent2)">P3</td>
+        </tr>
+        <tr>
+          <td>14</td>
+          <td>Domain fine-tuning</td>
+          <td><span class="badge badge-impact-high">High (long)</span></td>
+          <td><span class="badge badge-effort-hard">Hard</span></td>
+          <td>Export scripts + finetune config</td>
+          <td>Install Unsloth, run training job, test GGUF</td>
+          <td style="color:var(--accent2)">P3</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  NPChat Improvement Roadmap v2 · LM Studio Migration + RAG Enhancements · May 2025
+  <br>All improvements are free and locally runnable. LM Studio: <code>lmstudio.ai</code> · FlashRank · RAGAS · LightRAG
+</footer>
+
+</body>
+</html>

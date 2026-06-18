@@ -256,14 +256,14 @@ def main():
                 st.error(error_msg)
 
                 # Check common issues
-                if "connection" in str(e).lower() or "ollama" in str(e).lower():
-                    st.warning("Make sure Ollama is running: `ollama serve`")
+                if "connection" in str(e).lower():
+                    st.warning("LLM server not reachable. Run start_llm.ps1 to start llama-server.")
                 elif "collection" in str(e).lower() or "empty" in str(e).lower():
                     st.warning("Knowledge base may be empty. Run: `python scripts/ingest_blogs.py`")
 
     # Footer
     st.divider()
-    st.caption("Powered by Near Partner's blog content | Built with Ollama, ChromaDB, and Streamlit")
+    st.caption("Powered by Near Partner's blog content | Built with llama.cpp, sentence-transformers, ChromaDB, and Streamlit")
 
 
 if __name__ == "__main__":

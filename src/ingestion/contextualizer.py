@@ -31,11 +31,20 @@ overall subject. Do not repeat the chunk text. Do not add commentary."""
 # inject arbitrary instructions into the prompt (prompt injection via CMS).
 _PROMPT_DELIMITER_TAGS = ("<document>", "</document>", "<chunk>", "</chunk>")
 
+# Budget: ctx_size(8192) - chunk(~600) - prompt_template(~80) - response(80) - headroom(200)
+_MAX_DOCUMENT_CHARS = 20_000
+
 
 def _sanitize_for_prompt(text: str) -> str:
     for tag in _PROMPT_DELIMITER_TAGS:
         text = text.replace(tag, "")
     return text
+
+
+def _truncate_document(text: str) -> str:
+    if len(text) <= _MAX_DOCUMENT_CHARS:
+        return text
+    return text[:_MAX_DOCUMENT_CHARS] + "\n[document truncated for context window]"
 
 
 class ChunkContextualizer:
@@ -50,8 +59,8 @@ class ChunkContextualizer:
 
     def __init__(self, client: Optional[OpenAI] = None):
         self._client = client or OpenAI(
-            base_url=config.lmstudio_base_url,
-            api_key="lm-studio",
+            base_url=config.llm_base_url,
+            api_key="not-needed",
         )
 
     def get_context(self, document: str, chunk: str) -> str:
@@ -61,7 +70,7 @@ class ChunkContextualizer:
         Returns an empty string on failure so the caller can fall back gracefully.
         """
         prompt = _CONTEXT_PROMPT.format(
-            document=_sanitize_for_prompt(document),
+            document=_truncate_document(_sanitize_for_prompt(document)),
             chunk=_sanitize_for_prompt(chunk),
         )
         try:

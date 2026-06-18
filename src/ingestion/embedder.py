@@ -1,9 +1,14 @@
 """
-Embedding generation using LM Studio's OpenAI-compatible embeddings API.
+Embedding generation using sentence-transformers (in-process, no server needed).
 """
 from typing import List
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 from ..config import config
+
+# Config label → HuggingFace repo id
+_MODEL_MAP = {
+    "mxbai-embed-large-v1": "mixedbread-ai/mxbai-embed-large-v1",
+}
 
 # mxbai-embed-large-v1 was trained with this prefix on queries only (not documents).
 # Prepending it at query time meaningfully improves retrieval accuracy.
@@ -19,28 +24,26 @@ def _apply_query_prefix(model: str, query: str) -> str:
 
 class Embedder:
     """
-    Generates embeddings via LM Studio's local server.
+    Generates embeddings in-process via sentence-transformers.
+    The model is loaded once on first instantiation and reused.
+    Runs on CPU (no GPU/XPU acceleration on this machine).
     """
 
     def __init__(self, model: str = None):
         self.model = model or config.embedding_model
-        self._client = OpenAI(
-            base_url=config.lmstudio_base_url,
-            api_key="lm-studio",
-        )
+        repo = _MODEL_MAP.get(self.model, self.model)
+        self._st = SentenceTransformer(repo)
 
     def embed_text(self, text: str) -> List[float]:
-        response = self._client.embeddings.create(
-            model=self.model,
-            input=text,
-        )
-        return response.data[0].embedding
+        return self._st.encode(text, normalize_embeddings=True).tolist()
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        embeddings = []
-        for text in texts:
-            embeddings.append(self.embed_text(text))
-        return embeddings
+        return self._st.encode(
+            texts, normalize_embeddings=True, batch_size=16
+        ).tolist()
 
     def embed_query(self, query: str) -> List[float]:
+        # Prefix applied here — do NOT also pass prompt/prompt_name to encode().
+        # sentence-transformers does not auto-apply the mxbai prompt; doing both
+        # would double-prefix and degrade retrieval quality.
         return self.embed_text(_apply_query_prefix(self.model, query))

@@ -1,5 +1,5 @@
 """
-LM Studio LLM wrapper for generating responses (OpenAI-compatible API).
+LLM wrapper for generating responses via llama.cpp (OpenAI-compatible API).
 """
 from typing import Generator, Optional
 from openai import OpenAI
@@ -8,15 +8,15 @@ from ..config import config
 
 class OllamaLLM:
     """
-    LLM client backed by LM Studio's OpenAI-compatible local server.
+    LLM client backed by llama.cpp's OpenAI-compatible local server.
     The class name is preserved for backwards compatibility with existing callers.
     """
 
     def __init__(self, model: str = None):
         self.model = model or config.llm_model
         self._client = OpenAI(
-            base_url=config.lmstudio_base_url,
-            api_key="lm-studio",
+            base_url=config.llm_base_url,
+            api_key="not-needed",
         )
 
     def generate(

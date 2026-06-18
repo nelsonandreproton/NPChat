@@ -245,11 +245,11 @@ async def health_check():
     """
     Check the health of the chatbot service.
     """
-    lmstudio_connected = False
+    llm_connected = False
     try:
-        client = OpenAI(base_url=config.lmstudio_base_url, api_key="lm-studio")
+        client = OpenAI(base_url=config.llm_base_url, api_key="not-needed")
         client.models.list()
-        lmstudio_connected = True
+        llm_connected = True
     except Exception:
         pass
 
@@ -260,11 +260,12 @@ async def health_check():
     except Exception:
         pass
 
-    status = "healthy" if lmstudio_connected and vector_count > 0 else "degraded"
+    # Embeddings are in-process (sentence-transformers) — always available when app is running.
+    status = "healthy" if llm_connected and vector_count > 0 else "degraded"
 
     return HealthResponse(
         status=status,
-        ollama_connected=lmstudio_connected,
+        llm_connected=llm_connected,
         vector_store_count=vector_count,
         timestamp=datetime.now(timezone.utc).isoformat()
     )

@@ -58,3 +58,14 @@ data/app_settings.json
 
 # Claude
 .claude/
+CLAUDE.md
+
+# Scratch / diagnostic artifacts
+nul
+plan.md
+temp_one_on_one_content.txt
+chroma_one_on_one_content.txt
+data/ablation_results.txt
+data/ablation_cached.txt
+data/ablation_results.json
+data/hyde_probe.txt

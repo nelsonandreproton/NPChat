@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NPChat — RAG Improvement Roadmap 2025</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface2: #252842;
+    --border: #2e3250;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b9d;
+    --accent4: #ffb347;
+    --text: #e8eaf6;
+    --text-muted: #8b91c7;
+    --green: #4caf93;
+    --red: #e05c73;
+    --yellow: #f5c842;
+    --blue: #5dade2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 50%, #1a1025 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% -20%, rgba(108,99,255,0.25) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .header-badge {
+    display: inline-block;
+    background: rgba(108,99,255,0.15);
+    border: 1px solid rgba(108,99,255,0.4);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.9rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  header h1 {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 800;
+    background: linear-gradient(120deg, #ffffff 0%, #a89ff8 50%, #6c63ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+  header p {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 2rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+  nav a:hover {
+    color: var(--text);
+    background: var(--surface2);
+    border-color: var(--border);
+  }
+
+  /* ─── LAYOUT ─── */
+  main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  section { margin-bottom: 4rem; }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  h2 .icon { font-size: 1.4rem; }
+
+  /* ─── CURRENT ARCHITECTURE DIAGRAM ─── */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .arch-diagram h3 {
+    font-size: 1rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .flow-step {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    text-align: center;
+    min-width: 120px;
+    flex: 1;
+    max-width: 160px;
+  }
+  .flow-step .step-icon { font-size: 1.4rem; margin-bottom: 0.3rem; }
+  .flow-step .step-label { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+  .flow-step .step-detail { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 0.4rem;
+    color: var(--accent);
+    font-size: 1.2rem;
+  }
+  .flow-step.highlight { border-color: var(--accent); background: rgba(108,99,255,0.08); }
+  .flow-step.ok { border-color: var(--green); }
+
+  /* ─── QUICK WIN SUMMARY CARDS ─── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .summary-card.priority-1::before { background: var(--accent3); }
+  .summary-card.priority-2::before { background: var(--accent); }
+  .summary-card.priority-3::before { background: var(--accent2); }
+  .summary-card.priority-4::before { background: var(--yellow); }
+  .summary-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem; }
+  .summary-card p { font-size: 0.78rem; color: var(--text-muted); }
+  .summary-card .gain {
+    margin-top: 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .priority-1 .gain { background: rgba(255,107,157,0.15); color: var(--accent3); }
+  .priority-2 .gain { background: rgba(108,99,255,0.15); color: var(--accent); }
+  .priority-3 .gain { background: rgba(0,212,170,0.15); color: var(--accent2); }
+  .priority-4 .gain { background: rgba(245,200,66,0.15); color: var(--yellow); }
+
+  /* ─── IMPROVEMENT CARDS ─── */
+  .improvement-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.6rem;
+    margin-bottom: 1.2rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .improvement-card:hover { border-color: rgba(108,99,255,0.5); }
+  .improvement-card .card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .improvement-card .card-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  .icon-purple { background: rgba(108,99,255,0.15); }
+  .icon-green { background: rgba(0,212,170,0.15); }
+  .icon-pink { background: rgba(255,107,157,0.15); }
+  .icon-yellow { background: rgba(255,179,71,0.15); }
+  .icon-blue { background: rgba(93,173,226,0.15); }
+  .improvement-card .card-title { flex: 1; }
+  .improvement-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.2rem; }
+  .improvement-card .subtitle { font-size: 0.82rem; color: var(--text-muted); }
+  .badge-row {
+    display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.8rem 0;
+  }
+  .badge {
+    font-size: 0.7rem; font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge-impact-high { background: rgba(255,107,157,0.15); color: var(--accent3); border: 1px solid rgba(255,107,157,0.25); }
+  .badge-impact-medium { background: rgba(255,179,71,0.15); color: var(--accent4); border: 1px solid rgba(255,179,71,0.25); }
+  .badge-impact-low { background: rgba(93,173,226,0.15); color: var(--blue); border: 1px solid rgba(93,173,226,0.25); }
+  .badge-effort-easy { background: rgba(0,212,170,0.12); color: var(--green); border: 1px solid rgba(0,212,170,0.25); }
+  .badge-effort-medium { background: rgba(245,200,66,0.12); color: var(--yellow); border: 1px solid rgba(245,200,66,0.25); }
+  .badge-effort-hard { background: rgba(224,92,115,0.12); color: var(--red); border: 1px solid rgba(224,92,115,0.25); }
+  .badge-tools { background: rgba(108,99,255,0.1); color: var(--accent); border: 1px solid rgba(108,99,255,0.2); }
+  .improvement-card .description {
+    font-size: 0.88rem;
+    color: #c5c9e8;
+    line-height: 1.65;
+    margin-bottom: 0.8rem;
+  }
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-family: 'Consolas', 'Cascadia Code', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: #adbac7;
+    overflow-x: auto;
+    margin-top: 0.8rem;
+  }
+  .code-block .c { color: #768390; }
+  .code-block .kw { color: #f47067; }
+  .code-block .fn { color: #6cb6ff; }
+  .code-block .s { color: #96d0ff; }
+  .code-block .n { color: #cae8ff; }
+
+  /* ─── COMPARISON TABLE ─── */
+  .table-wrap { overflow-x: auto; margin-top: 1rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba(46,50,80,0.5);
+    vertical-align: middle;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .current-row td { background: rgba(108,99,255,0.05); }
+  .current-row td:first-child { border-left: 2px solid var(--accent); }
+
+  /* ─── ROADMAP ─── */
+  .roadmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+  .roadmap-phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .roadmap-phase .phase-header {
+    padding: 1rem 1.2rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .phase-1 .phase-header { background: rgba(255,107,157,0.12); border-bottom: 1px solid rgba(255,107,157,0.2); }
+  .phase-2 .phase-header { background: rgba(108,99,255,0.12); border-bottom: 1px solid rgba(108,99,255,0.2); }
+  .phase-3 .phase-header { background: rgba(0,212,170,0.10); border-bottom: 1px solid rgba(0,212,170,0.2); }
+  .roadmap-phase .phase-items { padding: 1rem 1.2rem; }
+  .phase-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(46,50,80,0.4);
+    font-size: 0.84rem;
+  }
+  .phase-item:last-child { border-bottom: none; }
+  .phase-item .check {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .phase-item .item-label { flex: 1; }
+  .phase-item .item-time { color: var(--text-muted); font-size: 0.74rem; }
+
+  /* ─── ARCHITECTURE BEFORE/AFTER ─── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+  .compare-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .compare-panel .panel-header {
+    padding: 0.8rem 1.2rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .panel-before .panel-header { background: rgba(224,92,115,0.1); color: var(--red); border-bottom: 1px solid rgba(224,92,115,0.2); }
+  .panel-after .panel-header { background: rgba(0,212,170,0.08); color: var(--green); border-bottom: 1px solid rgba(0,212,170,0.2); }
+  .compare-panel .panel-body { padding: 1.2rem; }
+  .compare-item {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.84rem;
+    padding: 0.35rem 0;
+    align-items: flex-start;
+  }
+  .compare-item .ci-icon { font-size: 0.9rem; flex-shrink: 0; margin-top: 1px; }
+
+  /* ─── PIPELINE VISUAL ─── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    padding-left: 2rem;
+  }
+  .pipeline::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 1.5rem;
+    bottom: 1.5rem;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2));
+  }
+  .pipeline-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.8rem;
+    position: relative;
+  }
+  .pipeline-step::before {
+    content: '';
+    position: absolute;
+    left: -1.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px rgba(108,99,255,0.5);
+  }
+  .pipeline-step.new-step { border-color: rgba(0,212,170,0.4); background: rgba(0,212,170,0.04); }
+  .pipeline-step.new-step::before { background: var(--accent2); box-shadow: 0 0 8px rgba(0,212,170,0.5); }
+  .pipeline-step h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.2rem; }
+  .pipeline-step p { font-size: 0.8rem; color: var(--text-muted); }
+  .new-badge {
+    display: inline-block;
+    background: rgba(0,212,170,0.15);
+    color: var(--accent2);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 2rem;
+  }
+
+  /* ─── UTILITIES ─── */
+  .section-intro {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    max-width: 700px;
+  }
+  .tag-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .tag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .tag-free { color: var(--green); border-color: rgba(76,175,147,0.35); background: rgba(76,175,147,0.08); }
+  .tag-local { color: var(--blue); border-color: rgba(93,173,226,0.35); background: rgba(93,173,226,0.08); }
+  .tag-quick { color: var(--accent4); border-color: rgba(255,179,71,0.35); background: rgba(255,179,71,0.08); }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">RAG Improvement Report · May 2025</div>
+  <h1>NPChat Improvement Roadmap</h1>
+  <p>Modern RAG best practices applied to your Near Partner chatbot — all free, all local, no API costs.</p>
+</header>
+
+<nav>
+  <a href="#current">Current State</a>
+  <a href="#quick-wins">Quick Wins</a>
+  <a href="#chunking">Chunking</a>
+  <a href="#embeddings">Embeddings</a>
+  <a href="#retrieval">Retrieval</a>
+  <a href="#reranking">Reranking</a>
+  <a href="#llm">LLM</a>
+  <a href="#evaluation">Evaluation</a>
+  <a href="#alternatives">Alternatives</a>
+  <a href="#roadmap">Roadmap</a>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- CURRENT STATE                                       -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="current">
+  <h2><span class="icon">🏗️</span> Current Architecture</h2>
+  <p class="section-intro">Your current implementation is already solid — hybrid retrieval + RRF is confirmed best practice in 2025. These are the components and where they sit in the pipeline.</p>
+
+  <div class="arch-diagram">
+    <h3>Data Ingestion Pipeline</h3>
+    <div class="flow">
+      <div class="flow-step ok">
+        <div class="step-icon">🌐</div>
+        <div class="step-label">Scraper</div>
+        <div class="step-detail">BS4 + requests<br>2.2s delay</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step ok">
+        <div class="step-icon">✂️</div>
+        <div class="step-label">Chunker</div>
+        <div class="step-detail">1200 char<br>200 overlap</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step ok">
+        <div class="step-icon">🔢</div>
+        <div class="step-label">Embedder</div>
+        <div class="step-detail">nomic-embed-text<br>Ollama batch=10</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step ok">
+        <div class="step-icon">🗄️</div>
+        <div class="step-label">ChromaDB</div>
+        <div class="step-detail">L2 distance<br>persistent</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arch-diagram">
+    <h3>Query Pipeline</h3>
+    <div class="flow">
+      <div class="flow-step ok">
+        <div class="step-icon">💬</div>
+        <div class="step-label">User Query</div>
+        <div class="step-detail">Sanitized<br>max 1000c</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step ok">
+        <div class="step-icon">🔍</div>
+        <div class="step-label">Expansion</div>
+        <div class="step-detail">LLM keywords<br>+ HyDE</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step highlight">
+        <div class="step-icon">⚡</div>
+        <div class="step-label">Hybrid Retrieval</div>
+        <div class="step-detail">Vector + BM25<br>RRF merge</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step ok">
+        <div class="step-icon">📝</div>
+        <div class="step-label">Prompt</div>
+        <div class="step-detail">Context +<br>history</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step ok">
+        <div class="step-icon">🤖</div>
+        <div class="step-label">LLM</div>
+        <div class="step-detail">gemma2:2b<br>Ollama</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step ok">
+        <div class="step-icon">💾</div>
+        <div class="step-label">Cache</div>
+        <div class="step-detail">SQLite<br>24h TTL</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-grid" style="margin-top:1.5rem;">
+    <div class="compare-panel panel-before">
+      <div class="panel-header">⚠ Current Weaknesses</div>
+      <div class="panel-body">
+        <div class="compare-item"><span class="ci-icon">🔴</span><span>No reranking — top retrieved chunks may not be most relevant</span></div>
+        <div class="compare-item"><span class="ci-icon">🔴</span><span>Character-based chunking loses semantic boundaries</span></div>
+        <div class="compare-item"><span class="ci-icon">🔴</span><span>nomic-embed-text is not the best free model available today</span></div>
+        <div class="compare-item"><span class="ci-icon">🔴</span><span><code>multi_query()</code> is coded but not wired into the RAG chain</span></div>
+        <div class="compare-item"><span class="ci-icon">🔴</span><span>No evaluation framework — impossible to measure improvements</span></div>
+        <div class="compare-item"><span class="ci-icon">🔴</span><span>Chunks lack document context (no situating sentence)</span></div>
+        <div class="compare-item"><span class="ci-icon">🟡</span><span>BM25 index rebuilt from scratch on every startup</span></div>
+        <div class="compare-item"><span class="ci-icon">🟡</span><span>Re-ingest doesn't check if content actually changed</span></div>
+      </div>
+    </div>
+    <div class="compare-panel panel-after">
+      <div class="panel-header">✅ Confirmed Strengths (Keep These)</div>
+      <div class="panel-body">
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>Hybrid BM25 + semantic with RRF — confirmed 2025 best practice</span></div>
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>HyDE + query expansion for better semantic coverage</span></div>
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>Feedback learning loop with chunk score adjustments</span></div>
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>Multi-turn conversation history (last 3 turns)</span></div>
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>SQLite analytics — logs every query, retrieval score, timing</span></div>
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>Full local stack — zero API costs</span></div>
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>Response caching with SHA256 key</span></div>
+        <div class="compare-item"><span class="ci-icon">🟢</span><span>Anti-prompt-injection in system prompt</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- QUICK WINS                                          -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="quick-wins">
+  <h2><span class="icon">⚡</span> Quick Wins (≤ 2 hours each)</h2>
+  <p class="section-intro">Highest ROI items — big impact with minimal code changes.</p>
+  <div class="summary-grid">
+    <div class="summary-card priority-1">
+      <h4>🎯 Cross-Encoder Reranking</h4>
+      <p>Install FlashRank, retrieve top-20, rerank to top-5. 10 lines of code.</p>
+      <span class="gain">+30–40% ranking accuracy</span>
+    </div>
+    <div class="summary-card priority-1">
+      <h4>🤖 Upgrade LLM to qwen2.5:3b</h4>
+      <p>65% MMLU vs 52% for gemma2:2b. Same speed, better answers. One config line.</p>
+      <span class="gain">+25% answer quality</span>
+    </div>
+    <div class="summary-card priority-2">
+      <h4>🔗 Wire multi_query() into RAG</h4>
+      <p>Already coded in query_expansion.py but not called. 5 lines to activate.</p>
+      <span class="gain">+10–15% recall</span>
+    </div>
+    <div class="summary-card priority-2">
+      <h4>#️⃣ Content Hash Deduplication</h4>
+      <p>Skip re-embedding unchanged content. Store SHA256 in ChromaDB metadata.</p>
+      <span class="gain">Faster re-ingestion</span>
+    </div>
+    <div class="summary-card priority-3">
+      <h4>📊 RAGAS Evaluation Harness</h4>
+      <p>Measure faithfulness + relevancy using your existing query_logs.db as test set.</p>
+      <span class="gain">Baseline metrics</span>
+    </div>
+    <div class="summary-card priority-3">
+      <h4>💾 Persist BM25 Index</h4>
+      <p>Pickle BM25 to disk on first build, reload if doc count unchanged.</p>
+      <span class="gain">Faster startup</span>
+    </div>
+    <div class="summary-card priority-4">
+      <h4>🔧 Structured LLM Outputs</h4>
+      <p>Use Ollama's JSON format for confidence scoring — no more fragile float parsing.</p>
+      <span class="gain">More reliable scoring</span>
+    </div>
+    <div class="summary-card priority-4">
+      <h4>📐 Better Embedding Model</h4>
+      <p>Switch to mxbai-embed-large — 2.3 MTEB points higher. 30 min + re-index.</p>
+      <span class="gain">+2–3% retrieval quality</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- CHUNKING                                            -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="chunking">
+  <h2><span class="icon">✂️</span> Chunking Improvements</h2>
+  <p class="section-intro">How you split documents directly determines retrieval quality. Better chunks = better answers.</p>
+
+  <!-- Contextual Retrieval -->
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-pink">📌</div>
+      <div class="card-title">
+        <h3>Contextual Retrieval <span class="new-badge">New</span></h3>
+        <div class="subtitle">Anthropic, Sep 2024 — reduces retrieval failures by 49%</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact</span>
+      <span class="badge badge-effort-medium">Medium Effort</span>
+      <span class="badge badge-tools">🛠 Existing Ollama</span>
+    </div>
+    <p class="description">
+      Before storing a chunk, call <strong>gemma2:2b</strong> with the full document + chunk text, asking it to write
+      1–2 sentences situating the chunk within the document. Prepend that context sentence to the chunk text
+      <em>before embedding and BM25 indexing</em>. This gives each chunk the context it needs to be found
+      even when the user asks about the broader topic rather than exact keywords.
+      Anthropic measured <strong>49% fewer retrieval failures</strong> using this approach, rising to 67% combined with reranking.
+    </p>
+    <div class="code-block">
+<span class="c"># src/ingestion/chunker.py — add to _chunk_post()</span>
+<span class="kw">def</span> <span class="fn">_add_context</span>(self, full_doc: str, chunk: str, title: str) → str:
+    prompt = <span class="s">f"""Document: {title}
+Content: {full_doc[:2500]}
+Chunk: {chunk}
+
+Write 1-2 sentences situating this chunk in the document context. Be concise."""</span>
+    ctx = self.ollama.<span class="fn">generate</span>(model=config.llm_model, prompt=prompt)[<span class="s">"response"</span>].<span class="fn">strip</span>()
+    <span class="kw">return</span> <span class="s">f"{ctx}\n\n{chunk}"</span>  <span class="c"># prepend before embedding</span>
+    </div>
+  </div>
+
+  <!-- Parent-Child -->
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-purple">👪</div>
+      <div class="card-title">
+        <h3>Parent-Child Chunks <span class="new-badge">New</span></h3>
+        <div class="subtitle">Retrieve small, return large — best of both worlds</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact</span>
+      <span class="badge badge-effort-medium">Medium Effort</span>
+      <span class="badge badge-tools">🛠 ChromaDB metadata</span>
+    </div>
+    <p class="description">
+      Store two chunk sizes: small <strong>child chunks</strong> (300–400 chars) for precise semantic matching,
+      and large <strong>parent chunks</strong> (1200–1500 chars) for rich LLM context.
+      At query time, retrieve using child chunks (better precision), then look up their parent IDs and
+      pass the full parent text to the LLM (better context). Currently both retrieval and generation
+      use the same 1200-char chunk — this wastes precision.
+    </p>
+    <div class="code-block">
+<span class="c"># At ingestion: store parent metadata on each child chunk</span>
+child_metadata = {
+    <span class="s">"parent_id"</span>: <span class="s">f"{url_clean}_parent_{para_index}"</span>,
+    <span class="s">"chunk_type"</span>: <span class="s">"child"</span>,
+    ...existing_metadata
+}
+<span class="c"># At retrieval: after hybrid search on children, look up parents</span>
+parent_ids = [<span class="fn">c</span>[<span class="s">"metadata"</span>][<span class="s">"parent_id"</span>] <span class="kw">for</span> c <span class="kw">in</span> retrieved_children]
+parent_chunks = vector_store.<span class="fn">get_by_ids</span>(parent_ids)
+    </div>
+  </div>
+
+  <!-- Semantic Chunking -->
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-green">🧠</div>
+      <div class="card-title">
+        <h3>Semantic Chunking</h3>
+        <div class="subtitle">Split on embedding similarity drift, not character count</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-medium">Medium Impact</span>
+      <span class="badge badge-effort-easy">Easy Effort</span>
+      <span class="badge badge-tools">🛠 langchain-experimental</span>
+    </div>
+    <p class="description">
+      Replace the 1200-char chunker with LangChain's <code>SemanticChunker</code>. It embeds each sentence
+      with <code>nomic-embed-text</code> and splits when cosine similarity between consecutive sentences
+      drops below a threshold — ensuring each chunk is semantically cohesive.
+      Your current approach already respects paragraph boundaries which partially achieves this,
+      so gains will be moderate but measurable.
+    </p>
+    <div class="code-block">
+pip install langchain-experimental
+
+<span class="kw">from</span> langchain_experimental.text_splitter <span class="kw">import</span> SemanticChunker
+<span class="kw">from</span> langchain_ollama <span class="kw">import</span> OllamaEmbeddings
+
+embeddings = <span class="fn">OllamaEmbeddings</span>(model=<span class="s">"nomic-embed-text"</span>)
+chunker = <span class="fn">SemanticChunker</span>(embeddings, breakpoint_threshold_type=<span class="s">"percentile"</span>)
+chunks = chunker.<span class="fn">split_text</span>(document_text)
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- EMBEDDINGS                                          -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="embeddings">
+  <h2><span class="icon">🔢</span> Embedding Model Upgrades</h2>
+  <p class="section-intro">Drop-in model swaps — pull via Ollama, update one config line, re-index ChromaDB.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>MTEB Score</th>
+          <th>Context</th>
+          <th>Size</th>
+          <th>Multilingual</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="current-row">
+          <td><strong>nomic-embed-text</strong> ← current</td>
+          <td>62.39</td>
+          <td>8192 tokens</td>
+          <td>274 MB</td>
+          <td>Limited</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><strong>mxbai-embed-large</strong> ★ recommended</td>
+          <td style="color:var(--green);font-weight:700">64.68 (+2.3)</td>
+          <td>512 tokens</td>
+          <td>700 MB</td>
+          <td>No</td>
+          <td><code>ollama pull mxbai-embed-large</code></td>
+        </tr>
+        <tr>
+          <td><strong>nomic-embed-text-v2-moe</strong></td>
+          <td>63.8 (est.)</td>
+          <td>8192 tokens</td>
+          <td>350 MB</td>
+          <td>Better</td>
+          <td><code>ollama pull nomic-embed-text-v2-moe</code></td>
+        </tr>
+        <tr>
+          <td><strong>bge-m3</strong> (best for Portuguese)</td>
+          <td>63.55</td>
+          <td>8192 tokens</td>
+          <td>1.2 GB</td>
+          <td style="color:var(--green)">Yes ✓</td>
+          <td><code>ollama pull bge-m3</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="improvement-card" style="margin-top:1.2rem;">
+    <div class="card-top">
+      <div class="card-icon icon-blue">🌍</div>
+      <div class="card-title">
+        <h3>bge-m3 for Portuguese + English Mixed Content</h3>
+        <div class="subtitle">BAAI — best multilingual model for hybrid content</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact (if Portuguese matters)</span>
+      <span class="badge badge-effort-easy">Easy Effort</span>
+      <span class="badge badge-tools">🛠 Ollama</span>
+    </div>
+    <p class="description">
+      <code>bge-m3</code> produces <strong>three vectors per input</strong>: dense (for semantic search), sparse (for keyword matching),
+      and multi-vector ColBERT-style — effectively replacing your separate BM25 index with one unified model.
+      It handles Portuguese natively. Near Partner's content mixes Portuguese and English; this model
+      handles both without quality degradation. The tradeoff is 1.2GB model size.
+    </p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- RETRIEVAL                                           -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="retrieval">
+  <h2><span class="icon">🔍</span> Advanced Retrieval</h2>
+  <p class="section-intro">Improvements to how documents are found — before they reach the LLM.</p>
+
+  <!-- Multi-query -->
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-green">🔀</div>
+      <div class="card-title">
+        <h3>Wire Up Existing multi_query() <span class="new-badge">Already Coded</span></h3>
+        <div class="subtitle">5 lines to activate — this is a free lunch</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-medium">Medium Impact</span>
+      <span class="badge badge-effort-easy">Easy (already implemented)</span>
+      <span class="badge badge-tools">🛠 query_expansion.py</span>
+    </div>
+    <p class="description">
+      <code>src/retrieval/query_expansion.py</code> has <code>multi_query()</code> that generates 3 query variants —
+      but <code>enhanced_rag_chain.py</code> never calls it. Wire it in: generate 3 variants, retrieve for each,
+      deduplicate by chunk ID (union), then pass all unique chunks to the reranker. This costs 3× BM25+vector
+      lookups but catches more recall. Combine with reranking to cut redundancy.
+    </p>
+    <div class="code-block">
+<span class="c"># enhanced_rag_chain.py — add to _retrieve()</span>
+<span class="kw">if</span> self.use_multi_query:
+    variants = self.expander.<span class="fn">multi_query</span>(query)          <span class="c"># already exists</span>
+    all_chunks = []
+    seen_ids = <span class="fn">set</span>()
+    <span class="kw">for</span> q <span class="kw">in</span> [query] + variants:
+        <span class="kw">for</span> c <span class="kw">in</span> self.retriever.<span class="fn">retrieve</span>(q, top_k * 2):
+            <span class="kw">if</span> c[<span class="s">"id"</span>] <span class="kw">not in</span> seen_ids:
+                all_chunks.<span class="fn">append</span>(c); seen_ids.<span class="fn">add</span>(c[<span class="s">"id"</span>])
+    chunks = all_chunks  <span class="c"># then rerank</span>
+    </div>
+  </div>
+
+  <!-- MMR -->
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-yellow">🎯</div>
+      <div class="card-title">
+        <h3>Maximal Marginal Relevance (MMR)</h3>
+        <div class="subtitle">Diverse results — avoid two near-identical chunks in the same prompt</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-medium">Medium Impact</span>
+      <span class="badge badge-effort-easy">Easy Effort</span>
+      <span class="badge badge-tools">🛠 Built into ChromaDB</span>
+    </div>
+    <p class="description">
+      Currently if two chunks from the same blog post score high (e.g., post mentions AI in paragraph 1 and paragraph 4),
+      both end up in the LLM prompt — redundant context that wastes tokens.
+      MMR penalizes chunks that are too similar to already-selected chunks, ensuring diversity.
+      ChromaDB supports this natively; LangChain's <code>MMRRetriever</code> wraps it cleanly.
+    </p>
+  </div>
+
+  <!-- Improved Pipeline Visual -->
+  <div class="arch-diagram" style="margin-top:1.5rem;">
+    <h3>Improved Query Pipeline (After All Retrieval Changes)</h3>
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <h4>🔍 Query Expansion + multi_query()</h4>
+        <p>Generate expanded query + 3 variants (already coded — just wire it)</p>
+      </div>
+      <div class="pipeline-step">
+        <h4>⚡ Parallel Hybrid Retrieval × 4 queries</h4>
+        <p>Vector + BM25 for each variant → union of results, deduplicated by chunk ID</p>
+      </div>
+      <div class="pipeline-step new-step">
+        <h4>🎯 Cross-Encoder Reranking <span class="new-badge">New</span></h4>
+        <p>FlashRank scores each (query, chunk) pair jointly → top-5 by true relevance</p>
+      </div>
+      <div class="pipeline-step new-step">
+        <h4>📌 Contextual Chunk Lookup <span class="new-badge">New</span></h4>
+        <p>Each chunk has a prepended context sentence → LLM gets situated text, not bare fragments</p>
+      </div>
+      <div class="pipeline-step">
+        <h4>📝 Prompt Building</h4>
+        <p>Top-5 situated chunks + conversation history → structured prompt</p>
+      </div>
+      <div class="pipeline-step">
+        <h4>🤖 qwen2.5:3b Generation</h4>
+        <p>Better instruction following → better answers on same hardware</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- RERANKING                                           -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="reranking">
+  <h2><span class="icon">🎯</span> Cross-Encoder Reranking</h2>
+  <p class="section-intro">The single highest ROI improvement. Scored (query, chunk) pairs outperform embedding similarity ranking by 30–40%.</p>
+
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-pink">🏆</div>
+      <div class="card-title">
+        <h3>FlashRank Reranking <span class="new-badge">Top Priority</span></h3>
+        <div class="subtitle">Sub-20ms CPU reranking of 50 candidates — designed for local use</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact</span>
+      <span class="badge badge-effort-easy">Easy Effort</span>
+      <span class="badge badge-tools">🛠 pip install flashrank</span>
+    </div>
+    <p class="description">
+      Bi-encoder embeddings (like <code>nomic-embed-text</code>) encode query and chunk independently —
+      they cannot reason about their interaction. A <strong>cross-encoder</strong> takes both together
+      and scores their relevance jointly, much more accurately. FlashRank is CPU-optimized
+      (sub-20ms for 50 candidates) and uses <code>ms-marco-MiniLM-L-12-v2</code> which downloads
+      automatically on first use (~23MB). Insert after hybrid retrieval, before prompt building.
+    </p>
+    <div class="code-block">
+pip install flashrank
+
+<span class="c"># src/retrieval/reranker.py (new file)</span>
+<span class="kw">from</span> flashrank <span class="kw">import</span> Ranker, RerankRequest
+
+<span class="kw">class</span> <span class="fn">ChunkReranker</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        self.ranker = <span class="fn">Ranker</span>(model_name=<span class="s">"ms-marco-MiniLM-L-12-v2"</span>)
+
+    <span class="kw">def</span> <span class="fn">rerank</span>(self, query: str, chunks: list[dict], top_k: <span class="fn">int</span> = 5) → list[dict]:
+        passages = [{<span class="s">"id"</span>: c[<span class="s">"id"</span>], <span class="s">"text"</span>: c[<span class="s">"text"</span>]} <span class="kw">for</span> c <span class="kw">in</span> chunks]
+        results = self.ranker.<span class="fn">rerank</span>(<span class="fn">RerankRequest</span>(query=query, passages=passages))
+        id_to_chunk = {c[<span class="s">"id"</span>]: c <span class="kw">for</span> c <span class="kw">in</span> chunks}
+        <span class="kw">return</span> [id_to_chunk[r[<span class="s">"id"</span>]] <span class="kw">for</span> r <span class="kw">in</span> results[:top_k]]
+
+<span class="c"># enhanced_rag_chain.py — after hybrid retrieve, before prompt:</span>
+chunks = self.reranker.<span class="fn">rerank</span>(query, initial_chunks, top_k=top_k)  <span class="c"># retrieve 20, rerank to 5</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- LLM UPGRADES                                        -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="llm">
+  <h2><span class="icon">🤖</span> LLM Upgrades</h2>
+  <p class="section-intro">Better models available in Ollama today — same hardware requirements, meaningfully better output quality.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>MMLU</th>
+          <th>RAM</th>
+          <th>Instruction Following</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="current-row">
+          <td><strong>gemma2:2b</strong> ← current</td>
+          <td>~52%</td>
+          <td>~1.6 GB</td>
+          <td>Good</td>
+          <td>Decent but outdated</td>
+        </tr>
+        <tr>
+          <td><strong>llama3.2:3b</strong></td>
+          <td>~58%</td>
+          <td>~2.0 GB</td>
+          <td>Better</td>
+          <td>Meta's latest small model</td>
+        </tr>
+        <tr>
+          <td><strong>qwen2.5:3b</strong> ★ recommended</td>
+          <td style="color:var(--green);font-weight:700">~65%</td>
+          <td>~1.9 GB</td>
+          <td style="color:var(--green)">Excellent</td>
+          <td>Best small Q&A model 2025</td>
+        </tr>
+        <tr>
+          <td><strong>qwen2.5:7b</strong> (if RAM allows)</td>
+          <td style="color:var(--green);font-weight:700">~72%</td>
+          <td>~4.7 GB</td>
+          <td style="color:var(--green)">Excellent</td>
+          <td>Near GPT-3.5 quality, local</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="improvement-card" style="margin-top:1.2rem;">
+    <div class="card-top">
+      <div class="card-icon icon-purple">🔧</div>
+      <div class="card-title">
+        <h3>Ollama Structured Outputs for Confidence</h3>
+        <div class="subtitle">Use native JSON format instead of fragile float parsing</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-medium">Medium Impact</span>
+      <span class="badge badge-effort-easy">Easy Effort</span>
+      <span class="badge badge-tools">🛠 Ollama (existing) — added JSON format in 2024</span>
+    </div>
+    <p class="description">
+      <code>_evaluate_confidence()</code> currently parses the LLM response as a float —
+      which fails when the LLM returns prose like <em>"I would rate this 0.7"</em>.
+      Ollama's structured output (added 2024) forces valid JSON and eliminates parsing errors.
+    </p>
+    <div class="code-block">
+<span class="c"># src/generation/llm.py — replace string-based confidence parsing</span>
+response = client.<span class="fn">generate</span>(
+    model=config.llm_model,
+    prompt=eval_prompt,
+    format={<span class="s">"type"</span>: <span class="s">"object"</span>,
+            <span class="s">"properties"</span>: {<span class="s">"score"</span>: {<span class="s">"type"</span>: <span class="s">"number"</span>}},
+            <span class="s">"required"</span>: [<span class="s">"score"</span>]},
+    options={<span class="s">"temperature"</span>: 0.1}
+)
+score = json.<span class="fn">loads</span>(response[<span class="s">"response"</span>])[<span class="s">"score"</span>]
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- EVALUATION                                          -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="evaluation">
+  <h2><span class="icon">📊</span> Evaluation Framework</h2>
+  <p class="section-intro">You cannot measure what you do not measure. Add evaluation now and every future improvement becomes provable.</p>
+
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-green">🧪</div>
+      <div class="card-title">
+        <h3>RAGAS with Ollama as Judge</h3>
+        <div class="subtitle">Free, open-source RAG evaluation using your local LLM</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact</span>
+      <span class="badge badge-effort-easy">Easy Effort</span>
+      <span class="badge badge-tools">🛠 pip install ragas</span>
+    </div>
+    <p class="description">
+      RAGAS measures three key RAG dimensions automatically.
+      By default it uses OpenAI as judge — but it fully supports Ollama as judge (free).
+      Use your existing <code>data/query_logs.db</code> + <code>data/feedback.db</code> to build a ground truth test set
+      from historically positive-feedback queries. Run nightly and track trends.
+    </p>
+    <div class="code-block">
+pip install ragas langchain-ollama
+
+<span class="kw">from</span> ragas <span class="kw">import</span> evaluate
+<span class="kw">from</span> ragas.metrics <span class="kw">import</span> faithfulness, answer_relevancy, context_recall
+<span class="kw">from</span> ragas.llms <span class="kw">import</span> LangchainLLMWrapper
+<span class="kw">from</span> langchain_ollama <span class="kw">import</span> OllamaLLM
+
+llm = <span class="fn">LangchainLLMWrapper</span>(<span class="fn">OllamaLLM</span>(model=<span class="s">"qwen2.5:3b"</span>, base_url=<span class="s">"http://localhost:11434"</span>))
+result = <span class="fn">evaluate</span>(test_dataset, metrics=[faithfulness, answer_relevancy, context_recall], llm=llm)
+<span class="c"># Outputs: {"faithfulness": 0.87, "answer_relevancy": 0.91, "context_recall": 0.76}</span>
+    </div>
+
+    <div style="margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.8rem;">
+      <div style="background:var(--surface2);border-radius:8px;padding:0.9rem;border:1px solid var(--border);">
+        <div style="font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem;">Faithfulness</div>
+        <div style="font-size:0.83rem;color:var(--text);">Does the answer stay grounded in retrieved chunks? Catches hallucinations.</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:0.9rem;border:1px solid var(--border);">
+        <div style="font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem;">Answer Relevancy</div>
+        <div style="font-size:0.83rem;color:var(--text);">Does the answer address what was asked? Catches off-topic responses.</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:0.9rem;border:1px solid var(--border);">
+        <div style="font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem;">Context Recall</div>
+        <div style="font-size:0.83rem;color:var(--text);">Did retrieval find the chunks needed to answer? Measures retrieval quality.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-yellow">📁</div>
+      <div class="card-title">
+        <h3>Regression Test Set from Existing Logs</h3>
+        <div class="subtitle">Your feedback.db already contains ground truth — use it</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact</span>
+      <span class="badge badge-effort-easy">Easy Effort (no new libraries)</span>
+      <span class="badge badge-tools">🛠 SQLite (existing)</span>
+    </div>
+    <p class="description">
+      Export queries with positive feedback from <code>feedback_learning.db</code> as
+      <code>(query, successful_chunk_ids)</code> pairs. Run nightly: re-retrieve those queries
+      and check if the same chunk IDs still rank in top-5. If recall drops after a change,
+      you catch regressions before users do.
+    </p>
+    <div class="code-block">
+<span class="c"># scripts/regression_test.py</span>
+<span class="kw">import</span> sqlite3
+conn = sqlite3.<span class="fn">connect</span>(<span class="s">"data/feedback_learning.db"</span>)
+test_cases = conn.<span class="fn">execute</span>(<span class="s">"""
+    SELECT original_query, successful_chunks
+    FROM query_mappings WHERE positive_count >= 2
+"""</span>).<span class="fn">fetchall</span>()
+
+hits = 0
+<span class="kw">for</span> query, chunks_json <span class="kw">in</span> test_cases:
+    expected = json.<span class="fn">loads</span>(chunks_json)
+    retrieved = retriever.<span class="fn">retrieve</span>(query, top_k=5)
+    retrieved_ids = {c[<span class="s">"id"</span>] <span class="kw">for</span> c <span class="kw">in</span> retrieved}
+    <span class="kw">if</span> <span class="fn">any</span>(e <span class="kw">in</span> retrieved_ids <span class="kw">for</span> e <span class="kw">in</span> expected):
+        hits += 1
+<span class="fn">print</span>(<span class="s">f"Regression recall: {hits}/{len(test_cases)} = {hits/len(test_cases):.0%}"</span>)
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ALTERNATIVES TO RAG                                 -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="alternatives">
+  <h2><span class="icon">🔄</span> Alternatives & Enhancements to RAG</h2>
+  <p class="section-intro">Beyond improving current RAG — structural alternatives for specific use cases.</p>
+
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-purple">🕸️</div>
+      <div class="card-title">
+        <h3>LightRAG — Graph + Vector Hybrid</h3>
+        <div class="subtitle">For relationship-type queries: "What industries has Near Partner worked in?"</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact (for relationship queries)</span>
+      <span class="badge badge-effort-hard">Hard Effort</span>
+      <span class="badge badge-tools">🛠 pip install lightrag-hku + NetworkX</span>
+    </div>
+    <p class="description">
+      LightRAG extracts entities and relationships from your documents using the local LLM
+      (<strong>works with Ollama</strong>), builds a NetworkX graph, and supports graph + vector
+      hybrid retrieval. For Near Partner content it would extract entities like
+      "Near Partner → provides → AI/ML services", "Near Partner → uses → Salesforce", etc.
+      Standard vector RAG answers "what" questions well. Graph RAG additionally answers
+      "how are things related" questions that span multiple documents.
+      <strong>Defer until corpus grows to 200+ documents</strong> — for current size, standard RAG + reranking is sufficient.
+    </p>
+    <div class="code-block">
+pip install lightrag-hku networkx
+<span class="c"># Works with Ollama — no OpenAI key needed (unlike Microsoft GraphRAG)</span>
+<span class="kw">from</span> lightrag <span class="kw">import</span> LightRAG
+<span class="kw">from</span> lightrag.llm.ollama <span class="kw">import</span> ollama_model_complete, ollama_embed
+rag = <span class="fn">LightRAG</span>(llm_model_func=ollama_model_complete, embedding_func=ollama_embed)
+    </div>
+  </div>
+
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-green">🎓</div>
+      <div class="card-title">
+        <h3>Domain Fine-Tuning (Long-Term)</h3>
+        <div class="subtitle">Embed Near Partner knowledge into model weights using your feedback data</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-high">High Impact (long-term)</span>
+      <span class="badge badge-effort-hard">Hard Effort</span>
+      <span class="badge badge-tools">🛠 Unsloth / LlamaFactory (free, local)</span>
+    </div>
+    <p class="description">
+      After accumulating 500+ queries with feedback in <code>data/feedback_learning.db</code>,
+      export them as synthetic Q&A training pairs and fine-tune <code>SmolLM2-1.7B</code> or
+      <code>Qwen2.5-1.5B</code> using <strong>Unsloth</strong> (memory-efficient, CPU/consumer GPU).
+      A fine-tuned model answers Near Partner-specific questions better and faster than a
+      general-purpose model + RAG retrieval.
+      This does <em>not</em> replace RAG for factual grounding — combine both.
+    </p>
+  </div>
+
+  <div class="improvement-card">
+    <div class="card-top">
+      <div class="card-icon icon-blue">⚠️</div>
+      <div class="card-title">
+        <h3>Long Context Window — Not Recommended for Production</h3>
+        <div class="subtitle">Stuffing all content into context: tempting but impractical here</div>
+      </div>
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-impact-medium">Medium Impact</span>
+      <span class="badge badge-effort-easy">Easy to Try</span>
+      <span class="badge badge-tools">⚠ CPU will struggle at 128K context</span>
+    </div>
+    <p class="description">
+      Models like <code>llama3.1:8b</code> support 128K context, theoretically allowing you to stuff
+      the entire blog corpus into one prompt and skip retrieval. In practice:
+      CPU inference at 128K context is 20–24× slower per token, "lost in the middle" degradation
+      drops accuracy for facts in the middle of long contexts, and your Ollama setup would
+      time out on most queries. <strong>Good for debugging</strong> (verify a specific answer exists
+      in context), not for production.
+    </p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ROADMAP                                             -->
+<!-- ═══════════════════════════════════════════════════ -->
+<section id="roadmap">
+  <h2><span class="icon">🗺️</span> Implementation Roadmap</h2>
+  <p class="section-intro">Ordered by impact-to-effort ratio. Each phase is self-contained and improves the system independently.</p>
+
+  <div class="roadmap-grid">
+    <div class="roadmap-phase phase-1">
+      <div class="phase-header">🔥 Phase 1 — Quick Wins (Week 1)</div>
+      <div class="phase-items">
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Install FlashRank + wire into enhanced_rag_chain.py</div>
+          <div class="item-time">2h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">ollama pull qwen2.5:3b + update config.py</div>
+          <div class="item-time">30m</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Wire existing multi_query() into RAG chain</div>
+          <div class="item-time">1h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Add content hash deduplication to ingestion</div>
+          <div class="item-time">1h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Fix confidence scoring to use Ollama JSON format</div>
+          <div class="item-time">30m</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Persist BM25 index to disk with pickle</div>
+          <div class="item-time">45m</div>
+        </div>
+      </div>
+    </div>
+    <div class="roadmap-phase phase-2">
+      <div class="phase-header">⚡ Phase 2 — Major Improvements (Week 2–3)</div>
+      <div class="phase-items">
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Add contextual retrieval to chunker.py</div>
+          <div class="item-time">4h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Switch to mxbai-embed-large + re-index ChromaDB</div>
+          <div class="item-time">1h + index time</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Implement parent-child chunk architecture</div>
+          <div class="item-time">4h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Build RAGAS evaluation harness with query_logs.db</div>
+          <div class="item-time">3h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Add regression test set from feedback_learning.db</div>
+          <div class="item-time">2h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Add MMR diversity to ChromaDB retrieval</div>
+          <div class="item-time">2h</div>
+        </div>
+      </div>
+    </div>
+    <div class="roadmap-phase phase-3">
+      <div class="phase-header">🔭 Phase 3 — Advanced (Month 2+)</div>
+      <div class="phase-items">
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Explore bge-m3 for Portuguese content quality</div>
+          <div class="item-time">2h + re-index</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Semantic chunking with langchain-experimental</div>
+          <div class="item-time">3h</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">LightRAG graph hybrid (when corpus > 200 docs)</div>
+          <div class="item-time">1–2 days</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Domain fine-tuning (when 500+ feedback queries)</div>
+          <div class="item-time">1 week</div>
+        </div>
+        <div class="phase-item">
+          <div class="check"></div>
+          <div class="item-label">Retrieval gating (skip retrieval for simple queries)</div>
+          <div class="item-time">2h</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prioritized Table -->
+  <div class="table-wrap" style="margin-top:2rem;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Improvement</th>
+          <th>Impact</th>
+          <th>Effort</th>
+          <th>Expected Gain</th>
+          <th>Tool</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">1</td>
+          <td>Cross-encoder reranking</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>+30–40% ranking accuracy</td>
+          <td><code>flashrank</code></td>
+        </tr>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">2</td>
+          <td>Upgrade to qwen2.5:3b LLM</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>+25% answer quality</td>
+          <td>Ollama</td>
+        </tr>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">3</td>
+          <td>Contextual chunk prepending</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-medium">Medium</span></td>
+          <td>−49% retrieval failures</td>
+          <td>Existing Ollama</td>
+        </tr>
+        <tr>
+          <td style="color:var(--accent3);font-weight:700">4</td>
+          <td>Wire multi_query() into RAG chain</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>+10–15% recall</td>
+          <td>Already coded</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Content hash deduplication</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Cleaner index, faster re-ingest</td>
+          <td>stdlib hashlib</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>RAGAS evaluation harness</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Measurement baseline</td>
+          <td><code>ragas</code></td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Switch to mxbai-embed-large</td>
+          <td><span class="badge badge-impact-medium">Medium</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>+2–3% retrieval quality</td>
+          <td>Ollama</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Parent-child chunking</td>
+          <td><span class="badge badge-impact-high">High</span></td>
+          <td><span class="badge badge-effort-medium">Medium</span></td>
+          <td>Better LLM context</td>
+          <td>ChromaDB metadata</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>Persist BM25 index</td>
+          <td><span class="badge badge-impact-low">Low</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Faster startup</td>
+          <td>pickle</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td>Structured outputs for confidence</td>
+          <td><span class="badge badge-impact-low">Low</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Reliable confidence scores</td>
+          <td>Ollama JSON format</td>
+        </tr>
+        <tr>
+          <td>11</td>
+          <td>bge-m3 multilingual embeddings</td>
+          <td><span class="badge badge-impact-high">High (PT)</span></td>
+          <td><span class="badge badge-effort-easy">Easy</span></td>
+          <td>Better Portuguese retrieval</td>
+          <td>Ollama</td>
+        </tr>
+        <tr>
+          <td>12</td>
+          <td>LightRAG graph hybrid</td>
+          <td><span class="badge badge-impact-high">High (at scale)</span></td>
+          <td><span class="badge badge-effort-hard">Hard</span></td>
+          <td>Relationship queries</td>
+          <td><code>lightrag-hku</code></td>
+        </tr>
+        <tr>
+          <td>13</td>
+          <td>Domain fine-tuning</td>
+          <td><span class="badge badge-impact-high">High (long-term)</span></td>
+          <td><span class="badge badge-effort-hard">Hard</span></td>
+          <td>Embedded domain knowledge</td>
+          <td>Unsloth / LlamaFactory</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  NPChat Improvement Report · Generated May 2025 · All improvements are free and locally runnable via Ollama + open-source Python libraries.
+  <br>Sources: Anthropic Contextual Retrieval paper, MTEB Leaderboard, FlashRank, RAGAS, LightRAG, Ollama model library.
+</footer>
+
+</body>
+</html>

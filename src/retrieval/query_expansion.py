@@ -37,8 +37,8 @@ class QueryExpander:
     def __init__(self, model: str = None):
         self.model = model or config.llm_model
         self._client = OpenAI(
-            base_url=config.lmstudio_base_url,
-            api_key="lm-studio",
+            base_url=config.llm_base_url,
+            api_key="not-needed",
         )
 
     def _complete(self, prompt: str, temperature: float = 0.3, max_tokens: int = 150) -> str:

@@ -257,7 +257,7 @@ class EnhancedRAGChain:
                 answer=answer[:500]
             )
             from openai import OpenAI
-            client = OpenAI(base_url=config.lmstudio_base_url, api_key="lm-studio")
+            client = OpenAI(base_url=config.llm_base_url, api_key="not-needed")
             response = client.chat.completions.create(
                 model=config.llm_model,
                 messages=[{"role": "user", "content": eval_prompt}],

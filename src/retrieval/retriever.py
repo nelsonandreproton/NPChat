@@ -8,9 +8,10 @@ from ..ingestion.embedder import Embedder
 from ..config import config
 
 # Expected output dimension for each known embedding model.
+# Keys must match config.embedding_model exactly.
 _KNOWN_DIMENSIONS: dict = {
     "nomic-embed-text-v1.5": 768,
-    "text-embedding-mxbai-embed-large-v1": 1024,
+    "mxbai-embed-large-v1": 1024,
 }
 
 

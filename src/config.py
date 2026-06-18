@@ -17,10 +17,11 @@ class Config:
     blog_posts_path: Path = base_dir / "nearpartner_blog_posts.json"
     company_pages_path: Path = base_dir / "nearpartner_company_pages.json"
 
-    # LM Studio settings (OpenAI-compatible API)
-    lmstudio_base_url: str = "http://localhost:1234/v1"
-    llm_model: str = "qwen2.5-3b-instruct"
-    embedding_model: str = "text-embedding-mxbai-embed-large-v1"
+    # LLM server (llama.cpp, OpenAI-compatible API)
+    llm_base_url: str = "http://localhost:8080/v1"
+    llm_model: str = "qwen2.5-7b-instruct"        # must match --alias on llama-server
+    # Embeddings run in-process via sentence-transformers (no server needed)
+    embedding_model: str = "mxbai-embed-large-v1"  # HF: mixedbread-ai/mxbai-embed-large-v1
 
     # Chunking settings (in characters; ~1200 chars ≈ 300-400 tokens)
     chunk_size: int = 1200

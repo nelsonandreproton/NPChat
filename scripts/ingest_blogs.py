@@ -46,9 +46,10 @@ def main():
     )
     args = parser.parse_args()
 
+    start_time = datetime.now()
     print("=" * 60)
     print("Near Partner Knowledge Base Ingestion")
-    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Started: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
     # Check what files exist
@@ -107,11 +108,16 @@ def main():
             # Full re-ingestion of all content
             stats = pipeline.reingest_all()
 
+    elapsed = datetime.now() - start_time
+    total_seconds = int(elapsed.total_seconds())
+    elapsed_str = f"{total_seconds // 60}m {total_seconds % 60}s"
+
     print("\n" + "=" * 60)
     print("Ingestion complete!")
     print(f"  Content items processed: {stats['posts']}")
     print(f"  Chunks added: {stats['chunks']}")
     print(f"  Total chunks in store: {pipeline.vector_store.count()}")
+    print(f"  Time elapsed: {elapsed_str}")
     print(f"\nFinished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 

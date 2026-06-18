@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NPChat — Arquitectura do Sistema</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.6; }
+
+  header { background: linear-gradient(135deg, #1a1f2e, #252d40); padding: 2rem 3rem; border-bottom: 1px solid #2d3748; }
+  header h1 { font-size: 2rem; font-weight: 700; color: #63b3ed; }
+  header p { color: #a0aec0; margin-top: 0.4rem; font-size: 1rem; }
+
+  .toc { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px; padding: 1.2rem 1.8rem; margin: 2rem 3rem; max-width: 420px; }
+  .toc h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: #718096; margin-bottom: 0.8rem; }
+  .toc a { display: block; color: #63b3ed; text-decoration: none; padding: 0.2rem 0; font-size: 0.95rem; }
+  .toc a:hover { color: #90cdf4; }
+
+  section { padding: 2rem 3rem; border-bottom: 1px solid #1a1f2e; }
+  section h2 { font-size: 1.4rem; font-weight: 700; color: #63b3ed; margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid #2d3748; }
+  section h3 { font-size: 1rem; font-weight: 600; color: #90cdf4; margin: 1.2rem 0 0.6rem; }
+
+  /* ── FLOW DIAGRAMS ── */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 1.5rem 0; }
+  .flow-step { background: #1e2535; border: 1px solid #2d3748; border-radius: 8px; padding: 0.7rem 1.1rem; font-size: 0.88rem; min-width: 110px; text-align: center; position: relative; }
+  .flow-step.highlight { background: #1a365d; border-color: #2b6cb0; }
+  .flow-step .label { font-weight: 600; color: #e2e8f0; display: block; }
+  .flow-step .sub { font-size: 0.75rem; color: #718096; display: block; margin-top: 0.2rem; }
+  .arrow { color: #4a5568; font-size: 1.4rem; padding: 0 0.4rem; flex-shrink: 0; }
+
+  /* ── GRID LAYOUTS ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin: 1.2rem 0; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin: 1.2rem 0; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1.2rem 0; }
+
+  /* ── CARDS ── */
+  .card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px; padding: 1rem 1.2rem; }
+  .card h4 { font-size: 0.9rem; font-weight: 700; color: #63b3ed; margin-bottom: 0.5rem; }
+  .card ul { list-style: none; padding: 0; }
+  .card ul li { font-size: 0.82rem; color: #a0aec0; padding: 0.2rem 0; border-top: 1px solid #2d3748; }
+  .card ul li:first-child { border-top: none; }
+  .card ul li::before { content: '▸ '; color: #4a5568; }
+
+  /* ── DATABASE CARDS ── */
+  .db-card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px; padding: 1rem; }
+  .db-card .db-name { font-size: 0.9rem; font-weight: 700; color: #68d391; font-family: monospace; margin-bottom: 0.5rem; }
+  .db-card table { width: 100%; font-size: 0.78rem; border-collapse: collapse; }
+  .db-card table th { color: #718096; text-align: left; padding: 0.2rem 0.4rem; font-weight: 600; }
+  .db-card table td { color: #a0aec0; padding: 0.2rem 0.4rem; border-top: 1px solid #2d3748; }
+
+  /* ── LAYERS / STACKED ── */
+  .layer-stack { display: flex; flex-direction: column; gap: 0.6rem; margin: 1.2rem 0; }
+  .layer { border-radius: 6px; padding: 0.7rem 1.2rem; font-size: 0.88rem; }
+  .layer.l1 { background: #2d3748; border-left: 4px solid #63b3ed; }
+  .layer.l2 { background: #1a2535; border-left: 4px solid #4c9cb3; }
+  .layer.l3 { background: #1a1f2e; border-left: 4px solid #2d6a7a; }
+  .layer .name { font-weight: 700; color: #e2e8f0; }
+  .layer .desc { font-size: 0.78rem; color: #718096; margin-top: 0.1rem; }
+
+  /* ── FEEDBACK MATRIX ── */
+  .feedback-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 1rem 0; }
+  .feedback-table th { background: #2d3748; color: #90cdf4; padding: 0.6rem 1rem; text-align: left; }
+  .feedback-table td { padding: 0.6rem 1rem; border-top: 1px solid #2d3748; color: #a0aec0; vertical-align: top; }
+  .feedback-table tr:nth-child(even) td { background: #1a1f2e; }
+  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin: 0.1rem; }
+  .tag.green { background: #1c4532; color: #68d391; }
+  .tag.red { background: #4a1515; color: #fc8181; }
+  .tag.blue { background: #1a365d; color: #63b3ed; }
+  .tag.yellow { background: #3d3000; color: #f6e05e; }
+
+  /* ── SCHEDULE ── */
+  .schedule-row { display: flex; align-items: center; gap: 1rem; padding: 0.6rem 0; border-top: 1px solid #2d3748; font-size: 0.85rem; }
+  .schedule-row:first-child { border-top: none; }
+  .schedule-time { background: #1a365d; color: #63b3ed; border-radius: 4px; padding: 0.2rem 0.6rem; font-family: monospace; font-size: 0.8rem; white-space: nowrap; }
+  .schedule-label { color: #e2e8f0; font-weight: 600; }
+  .schedule-desc { color: #718096; font-size: 0.8rem; }
+
+  /* ── TECH BADGE ── */
+  .badge-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.8rem 0; }
+  .badge { background: #2d3748; color: #a0aec0; border-radius: 4px; padding: 0.25rem 0.7rem; font-size: 0.8rem; font-family: monospace; }
+  .badge.py { background: #1c2d3d; color: #63b3ed; }
+  .badge.db { background: #1c3d28; color: #68d391; }
+  .badge.ai { background: #2d1c3d; color: #b794f4; }
+
+  /* ── API ENDPOINT LIST ── */
+  .endpoint { display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.5rem 0; border-top: 1px solid #2d3748; font-size: 0.85rem; }
+  .endpoint:first-child { border-top: none; }
+  .method { font-weight: 700; font-family: monospace; width: 46px; flex-shrink: 0; }
+  .method.post { color: #68d391; }
+  .method.get { color: #63b3ed; }
+  .path { font-family: monospace; color: #e2e8f0; }
+  .endpoint-desc { color: #718096; font-size: 0.78rem; margin-top: 0.1rem; }
+
+  /* ── BIG PIPELINE (section 2) ── */
+  .pipeline { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; }
+  .pipe-step { display: flex; gap: 1.2rem; }
+  .pipe-num { width: 32px; height: 32px; background: #2b6cb0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: white; flex-shrink: 0; margin-top: 0.1rem; }
+  .pipe-body { flex: 1; background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px; padding: 0.8rem 1.1rem; margin-bottom: 0; }
+  .pipe-connector { width: 32px; display: flex; justify-content: center; }
+  .pipe-connector-line { width: 2px; background: #2d3748; margin: 0 auto; height: 16px; }
+  .pipe-body h4 { font-size: 0.9rem; font-weight: 700; color: #90cdf4; }
+  .pipe-body p { font-size: 0.82rem; color: #718096; margin-top: 0.3rem; }
+  .pipe-body .file { font-size: 0.78rem; font-family: monospace; color: #4a5568; margin-top: 0.3rem; }
+
+  @media (max-width: 768px) {
+    section, header { padding: 1.5rem 1.2rem; }
+    .toc { margin: 1.5rem 1.2rem; }
+    .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+    .flow { flex-direction: column; align-items: flex-start; }
+    .arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>NPChat — Near Partner RAG Chatbot</h1>
+  <p>Documentação de arquitectura — esquemas visuais do sistema completo</p>
+</header>
+
+<nav class="toc">
+  <h2>Índice</h2>
+  <a href="#visao-geral">1. Visão Geral</a>
+  <a href="#pipeline-rag">2. Pipeline RAG (Pergunta → Resposta)</a>
+  <a href="#ingestao">3. Ingestão de Conhecimento</a>
+  <a href="#retrieval">4. Retrieval Híbrido</a>
+  <a href="#feedback">5. Sistema de Feedback e Aprendizagem</a>
+  <a href="#dados">6. Bases de Dados SQLite</a>
+  <a href="#api">7. API REST (FastAPI)</a>
+  <a href="#agendamento">8. Agendamento Automático</a>
+  <a href="#stack">9. Stack Tecnológico</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="visao-geral">
+  <h2>1. Visão Geral do Sistema</h2>
+
+  <p style="color:#a0aec0; margin-bottom:1.5rem; font-size:0.9rem;">
+    O NPChat é um chatbot RAG (Retrieval-Augmented Generation) que responde perguntas sobre a
+    <strong style="color:#e2e8f0">Near Partner</strong> usando conteúdo raspado do site oficial.
+    Funciona 100% local via Ollama — sem chaves de API externas.
+  </p>
+
+  <div class="flow">
+    <div class="flow-step highlight">
+      <span class="label">nearpartner.com</span>
+      <span class="sub">blog + páginas</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">Scraper</span>
+      <span class="sub">BeautifulSoup</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">JSON</span>
+      <span class="sub">blog_posts / company_pages</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">Ingestão</span>
+      <span class="sub">chunk + embed</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">ChromaDB</span>
+      <span class="sub">vector store</span>
+    </div>
+  </div>
+
+  <div class="flow" style="margin-top:0.5rem">
+    <div class="flow-step highlight">
+      <span class="label">Utilizador</span>
+      <span class="sub">pergunta (PT / EN)</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">FastAPI / Streamlit</span>
+      <span class="sub">rate limit + sanitize</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">RAG Chain</span>
+      <span class="sub">expand → retrieve → generate</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">Ollama LLM</span>
+      <span class="sub">gemma2:2b</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step highlight">
+      <span class="label">Resposta</span>
+      <span class="sub">+ fontes + log</span>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-top:1.8rem">
+    <div class="card">
+      <h4>Interfaces</h4>
+      <ul>
+        <li>Streamlit (4 tabs: Chat, Analytics, ChromaDB, Settings)</li>
+        <li>FastAPI REST API (/api/v1/chat, /feedback, /health)</li>
+        <li>Streaming SSE (/chat/stream)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Fontes de Conhecimento</h4>
+      <ul>
+        <li>Blog posts scrape incremental</li>
+        <li>13 páginas de empresa</li>
+        <li>Chunks de ~1200 chars (~300–400 tokens)</li>
+        <li>Sobreposição de 200 chars</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Persistência</h4>
+      <ul>
+        <li>ChromaDB — embeddings</li>
+        <li>query_logs.db — analytics</li>
+        <li>response_cache.db — cache LLM</li>
+        <li>feedback.db — feedback bruto</li>
+        <li>feedback_learning.db — aprendizagem</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="pipeline-rag">
+  <h2>2. Pipeline RAG — Pergunta → Resposta</h2>
+  <p style="color:#a0aec0; font-size:0.88rem; margin-bottom:1.5rem;">
+    Cada pergunta passa por até 5 fases dentro de <code style="color:#b794f4">EnhancedRAGChain</code>.
+  </p>
+
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body">
+        <h4>Sanitização do Input</h4>
+        <p>Truncagem a 1000 chars, remoção de null bytes, strip. Protecção contra prompt injection.</p>
+        <div class="file">src/generation/prompts.py · sanitize_user_input()</div>
+      </div>
+    </div>
+    <div class="pipe-step" style="margin-top:-1px">
+      <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+      <div style="flex:1"></div>
+    </div>
+
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body">
+        <h4>Query Expansion <span style="color:#4a5568; font-weight:400">(opcional)</span></h4>
+        <p>O LLM expande a pergunta com sinónimos e reformulações. Aumenta o recall.
+           Alternativa: <strong>HyDE</strong> — gera resposta hipotética e embeda-a em vez da pergunta.</p>
+        <div class="file">src/retrieval/query_expansion.py · QueryExpander.expand_query() / generate_hyde()</div>
+      </div>
+    </div>
+    <div class="pipe-step" style="margin-top:-1px">
+      <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+      <div style="flex:1"></div>
+    </div>
+
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body">
+        <h4>Retrieval Híbrido (Semântico + BM25)</h4>
+        <p>Busca em dois vectores em paralelo e combina com <strong>Reciprocal Rank Fusion (RRF)</strong>.
+           Pesos: 70% semântico + 30% BM25.
+           O FeedbackLearner ajusta scores com base no historial.</p>
+        <div class="file">src/retrieval/hybrid_retriever.py · HybridRetriever.retrieve()</div>
+      </div>
+    </div>
+    <div class="pipe-step" style="margin-top:-1px">
+      <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+      <div style="flex:1"></div>
+    </div>
+
+    <div class="pipe-step">
+      <div class="pipe-num">4</div>
+      <div class="pipe-body">
+        <h4>Construção do Prompt</h4>
+        <p>Combina contexto recuperado + histórico de conversa (últimas 3 trocas) + pergunta.
+           System prompt em português, inclui valores e serviços da Near Partner.</p>
+        <div class="file">src/generation/prompts.py · build_rag_prompt()</div>
+      </div>
+    </div>
+    <div class="pipe-step" style="margin-top:-1px">
+      <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+      <div style="flex:1"></div>
+    </div>
+
+    <div class="pipe-step">
+      <div class="pipe-num">5</div>
+      <div class="pipe-body">
+        <h4>Geração LLM (Ollama)</h4>
+        <p>Modelo local <code>gemma2:2b</code> (configurável: mistral:7b, etc.).
+           Opcionalmente auto-avalia a confiança da resposta (0.0–1.0) numa segunda chamada LLM.</p>
+        <div class="file">src/generation/llm.py · OllamaLLM.generate()</div>
+      </div>
+    </div>
+    <div class="pipe-step" style="margin-top:-1px">
+      <div class="pipe-connector"><div class="pipe-connector-line"></div></div>
+      <div style="flex:1"></div>
+    </div>
+
+    <div class="pipe-step">
+      <div class="pipe-num">6</div>
+      <div class="pipe-body">
+        <h4>Cache + Log + Resposta</h4>
+        <p>Resultado guardado no <strong>ResponseCache</strong> (SQLite, TTL 24h).
+           Query registada no <strong>QueryLogger</strong> com scores e tempo de resposta.
+           Devolvidos: resposta, fontes, log_id, chunk_ids.</p>
+        <div class="file">src/analytics/response_cache.py · src/analytics/query_logger.py</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="ingestao">
+  <h2>3. Ingestão de Conhecimento</h2>
+
+  <h3>3a. Scrapers</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>scraper.py — Blog Posts</h4>
+      <ul>
+        <li>Percorre blog.nearpartner.com página a página</li>
+        <li>Extrai URLs com padrão /YYYY/MM/post/</li>
+        <li>Scrape incremental (só posts novos)</li>
+        <li>Extrai: título, autor, categorias, data, conteúdo limpo</li>
+        <li>Remove sidebar, metadados de fim, "LATEST POST"</li>
+        <li>Output: nearpartner_blog_posts.json</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>scrape_company_pages.py — Páginas da Empresa</h4>
+      <ul>
+        <li>13 páginas fixas (homepage, serviços, sobre, etc.)</li>
+        <li>Mesmo pipeline de limpeza de conteúdo</li>
+        <li>Output: nearpartner_company_pages.json</li>
+        <li>Delay 2.2s entre pedidos (polite scraping)</li>
+        <li>User-Agent identificado como scraper interno</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>3b. Pipeline de Ingestão</h3>
+  <div class="flow" style="margin:1rem 0">
+    <div class="flow-step">
+      <span class="label">JSON files</span>
+      <span class="sub">blog + company</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">TextChunker</span>
+      <span class="sub">~1200 chars, overlap 200</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">Embedder</span>
+      <span class="sub">nomic-embed-text</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">VectorStore</span>
+      <span class="sub">ChromaDB add_chunks()</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step highlight">
+      <span class="label">nearpartner_knowledge</span>
+      <span class="sub">colecção ChromaDB</span>
+    </div>
+  </div>
+
+  <h3>3c. Estratégia de Chunking</h3>
+  <div class="layer-stack">
+    <div class="layer l1">
+      <div class="name">Split por parágrafos duplos (\n\n)</div>
+      <div class="desc">Preserva fronteiras semânticas naturais do texto</div>
+    </div>
+    <div class="layer l2">
+      <div class="name">Headings agregados ao parágrafo seguinte</div>
+      <div class="desc">Título &lt;100 chars sem pontuação final → prefixado ao conteúdo</div>
+    </div>
+    <div class="layer l3">
+      <div class="name">Agrupamento em chunks de ~1200 chars com overlap de 200</div>
+      <div class="desc">Último parágrafo do chunk anterior reutilizado como contexto no seguinte</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="retrieval">
+  <h2>4. Retrieval Híbrido — Semântico + BM25</h2>
+
+  <div class="grid2">
+    <div>
+      <h3>Busca Semântica (70%)</h3>
+      <div class="flow" style="flex-direction:column; gap:0.5rem; align-items:stretch">
+        <div class="flow-step" style="text-align:left">
+          <span class="label">Query → nomic-embed-text</span>
+          <span class="sub">vector 768 dims via Ollama</span>
+        </div>
+        <div class="arrow" style="transform:rotate(90deg); text-align:center">↓</div>
+        <div class="flow-step" style="text-align:left">
+          <span class="label">ChromaDB similarity search</span>
+          <span class="sub">L2 distance → similarity score = 1/(1+dist)</span>
+        </div>
+        <div class="arrow" style="transform:rotate(90deg); text-align:center">↓</div>
+        <div class="flow-step highlight" style="text-align:left">
+          <span class="label">Top K×2 resultados</span>
+          <span class="sub">para fusão RRF</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>Busca BM25 (30%)</h3>
+      <div class="flow" style="flex-direction:column; gap:0.5rem; align-items:stretch">
+        <div class="flow-step" style="text-align:left">
+          <span class="label">Índice BM25Okapi</span>
+          <span class="sub">construído on-demand a partir de todos os docs ChromaDB</span>
+        </div>
+        <div class="arrow" style="transform:rotate(90deg); text-align:center">↓</div>
+        <div class="flow-step" style="text-align:left">
+          <span class="label">Tokenização lowercase + regex \b\w+\b</span>
+          <span class="sub">query expandida se disponível</span>
+        </div>
+        <div class="arrow" style="transform:rotate(90deg); text-align:center">↓</div>
+        <div class="flow-step highlight" style="text-align:left">
+          <span class="label">Top K×2 resultados com score &gt; 0</span>
+          <span class="sub">para fusão RRF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Reciprocal Rank Fusion (RRF)</h3>
+  <div class="card" style="max-width:640px; margin-top:0.5rem">
+    <h4>Fórmula: RRF_score = Σ weight / (k + rank)</h4>
+    <ul>
+      <li>k = 60 (constante padrão RRF)</li>
+      <li>Semântico: 0.7 / (60 + rank + 1)</li>
+      <li>BM25: 0.3 / (60 + rank + 1)</li>
+      <li>Documentos que aparecem em ambas as listas recebem score combinado</li>
+      <li>Resultado final ordenado por RRF score descendente</li>
+      <li>Índice BM25 reconstruído automaticamente quando ChromaDB muda</li>
+    </ul>
+  </div>
+
+  <h3 style="margin-top:1.2rem">Query Expansion + HyDE</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Expansion (padrão)</h4>
+      <ul>
+        <li>LLM gera versão expandida com sinónimos e reformulações</li>
+        <li>Expansão concatenada à query original</li>
+        <li>Skipped para queries &lt;= 2 palavras (saudações)</li>
+        <li>Temperature 0.3, max 150 tokens</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>HyDE (Hypothetical Document Embedding)</h4>
+      <ul>
+        <li>LLM gera resposta hipotética de 50–100 palavras</li>
+        <li>Essa resposta é embedada em vez da pergunta</li>
+        <li>Encontra documentos semelhantes à resposta esperada</li>
+        <li>Útil para perguntas abstractas ou conceituais</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="feedback">
+  <h2>5. Sistema de Feedback e Aprendizagem Automática</h2>
+
+  <p style="color:#a0aec0; font-size:0.88rem; margin-bottom:1.2rem;">
+    Cada resposta inclui botões 👍/👎. O FeedbackLearner processa o feedback em tempo real
+    e aplica 4 tipos de acções automáticas.
+  </p>
+
+  <table class="feedback-table">
+    <thead>
+      <tr>
+        <th>Feedback</th>
+        <th>Acção 1 — Cache</th>
+        <th>Acção 2 — Chunks</th>
+        <th>Acção 3 — Flagging</th>
+        <th>Acção 4 — Mapeamento</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag green">👍 Positivo</span></td>
+        <td>Cache mantido</td>
+        <td><span class="tag green">+0.10</span> boost em todos os chunk_ids usados</td>
+        <td>—</td>
+        <td>Query + chunk_ids guardados em <code>query_mappings</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag red">👎 Negativo</span></td>
+        <td><span class="tag red">Invalidar</span> entrada de cache para esta query</td>
+        <td><span class="tag red">-0.15</span> penalização em todos os chunk_ids usados</td>
+        <td>Contagem de negativos. Se ≥ 2 → <span class="tag yellow">flag "pending"</span></td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Fluxo de Ajuste de Scores no Retrieval</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <span class="label">Resultados HybridRetriever</span>
+      <span class="sub">combined_score (RRF)</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">FeedbackLearner</span>
+      <span class="sub">apply_adjustments_to_results()</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step highlight">
+      <span class="label">adjusted_score</span>
+      <span class="sub">= combined_score ± adjustment</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-step">
+      <span class="label">Re-sort por adjusted_score</span>
+      <span class="sub">clamp [0, 1]</span>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.2rem">Tabela chunk_adjustments</h3>
+  <div class="card" style="max-width:500px">
+    <h4>feedback_learning.db</h4>
+    <ul>
+      <li>chunk_id (TEXT UNIQUE) → identificador do chunk</li>
+      <li>score_adjustment (REAL) → acumulado ao longo do tempo</li>
+      <li>positive_count / negative_count — rastreabilidade</li>
+      <li>Scores boostados em futuras buscas para o mesmo chunk</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="dados">
+  <h2>6. Bases de Dados SQLite</h2>
+
+  <div class="grid2">
+    <div class="db-card">
+      <div class="db-name">data/query_logs.db</div>
+      <table>
+        <tr><th>Campo</th><th>Descrição</th></tr>
+        <tr><td>query</td><td>Pergunta original</td></tr>
+        <tr><td>expanded_query</td><td>Versão expandida (se usada)</td></tr>
+        <tr><td>retrieval_scores</td><td>JSON array de scores por chunk</td></tr>
+        <tr><td>avg_retrieval_score</td><td>Média — detecta gaps de conhecimento</td></tr>
+        <tr><td>response_time_ms</td><td>Latência total do pipeline</td></tr>
+        <tr><td>feedback</td><td>'positive' / 'negative' / NULL</td></tr>
+        <tr><td>model_used</td><td>Modelo LLM utilizado</td></tr>
+      </table>
+    </div>
+
+    <div class="db-card">
+      <div class="db-name">data/response_cache.db</div>
+      <table>
+        <tr><th>Campo</th><th>Descrição</th></tr>
+        <tr><td>query_hash</td><td>SHA256(query+settings)[:32] — chave única</td></tr>
+        <tr><td>query</td><td>Query original (lowercase)</td></tr>
+        <tr><td>response</td><td>Resposta LLM cacheada</td></tr>
+        <tr><td>sources</td><td>JSON array de fontes</td></tr>
+        <tr><td>created_at</td><td>Timestamp UTC — TTL 24h</td></tr>
+        <tr><td>hit_count</td><td>Número de vezes servido do cache</td></tr>
+      </table>
+    </div>
+
+    <div class="db-card">
+      <div class="db-name">data/feedback.db</div>
+      <table>
+        <tr><th>Campo</th><th>Descrição</th></tr>
+        <tr><td>query</td><td>Pergunta do utilizador</td></tr>
+        <tr><td>response</td><td>Resposta avaliada</td></tr>
+        <tr><td>feedback_type</td><td>thumbs_up / thumbs_down</td></tr>
+        <tr><td>correction</td><td>Correcção manual (opcional)</td></tr>
+        <tr><td>comment</td><td>Comentário livre</td></tr>
+      </table>
+    </div>
+
+    <div class="db-card">
+      <div class="db-name">data/feedback_learning.db</div>
+      <table>
+        <tr><th>Tabela</th><th>Propósito</th></tr>
+        <tr><td>chunk_adjustments</td><td>Score boost/penalização por chunk_id</td></tr>
+        <tr><td>flagged_queries</td><td>Queries com ≥2 negativos → revisão humana</td></tr>
+        <tr><td>query_mappings</td><td>Query → chunk_ids de sucesso (positivos)</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="api">
+  <h2>7. API REST (FastAPI)</h2>
+
+  <p style="color:#a0aec0; font-size:0.88rem; margin-bottom:1rem;">
+    Servidor em <code style="color:#b794f4">127.0.0.1:8000</code> (localhost only).
+    Rate limit: 30 requests/min por IP (sliding window in-memory).
+    CORS permitido apenas para <code>localhost:8501</code> (Streamlit).
+  </p>
+
+  <div class="card">
+    <h4>Endpoints</h4>
+    <div class="endpoint">
+      <div class="method post">POST</div>
+      <div>
+        <div class="path">/api/v1/chat</div>
+        <div class="endpoint-desc">Pergunta ao chatbot. Suporta conversation_history (multi-turn), top_k, temperature. Verifica cache primeiro.</div>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="method post">POST</div>
+      <div>
+        <div class="path">/api/v1/chat/stream</div>
+        <div class="endpoint-desc">Resposta em streaming via Server-Sent Events (SSE).</div>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="method post">POST</div>
+      <div>
+        <div class="path">/api/v1/feedback</div>
+        <div class="endpoint-desc">Submete feedback (thumbs_up/down) + chunk_ids. Dispara FeedbackLearner.process_feedback().</div>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="method get">GET</div>
+      <div>
+        <div class="path">/api/v1/sources</div>
+        <div class="endpoint-desc">Lista todas as fontes únicas na knowledge base (URLs + metadados).</div>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="method get">GET</div>
+      <div>
+        <div class="path">/api/v1/health</div>
+        <div class="endpoint-desc">Estado do serviço: Ollama conectado? Vector store count? Status healthy/degraded.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.2rem">Inicialização Lazy dos Componentes</h3>
+  <div class="grid4">
+    <div class="card"><h4>EnhancedRAGChain</h4><ul><li>Criado na 1ª chamada /chat</li><li>Singleton por processo</li></ul></div>
+    <div class="card"><h4>VectorStore</h4><ul><li>Singleton lazy</li><li>Partilhado com /sources</li></ul></div>
+    <div class="card"><h4>ResponseCache</h4><ul><li>Singleton lazy</li><li>SQLite thread-safe</li></ul></div>
+    <div class="card"><h4>FeedbackLearner</h4><ul><li>Singleton lazy</li><li>Processamento sync</li></ul></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="agendamento">
+  <h2>8. Agendamento Automático (APScheduler)</h2>
+
+  <p style="color:#a0aec0; font-size:0.88rem; margin-bottom:1rem;">
+    Arranca em background quando o Streamlit inicia. Mantém o conhecimento actualizado automaticamente.
+  </p>
+
+  <div style="background:#1a1f2e; border:1px solid #2d3748; border-radius:8px; padding:1.2rem; max-width:640px">
+    <div class="schedule-row">
+      <div class="schedule-time">Mon 02:00</div>
+      <div>
+        <div class="schedule-label">Full Update</div>
+        <div class="schedule-desc">scraper.py → scrape_company_pages.py → scripts/ingest_blogs.py</div>
+      </div>
+    </div>
+    <div class="schedule-row">
+      <div class="schedule-time">Daily 03:00</div>
+      <div>
+        <div class="schedule-label">Cache Cleanup</div>
+        <div class="schedule-desc">ResponseCache.clear_expired() — remove entradas com &gt; 24h</div>
+      </div>
+    </div>
+    <div class="schedule-row">
+      <div class="schedule-time">Sun 23:00</div>
+      <div>
+        <div class="schedule-label">Weekly Report</div>
+        <div class="schedule-desc">Gera relatório em data/reports/weekly_YYYYMMDD.txt com estatísticas, gaps de conhecimento e queries flagged</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.2rem">Conteúdo do Relatório Semanal</h3>
+  <div class="card" style="max-width:500px">
+    <h4>data/reports/weekly_YYYYMMDD.txt</h4>
+    <ul>
+      <li>Total de queries na semana</li>
+      <li>Score médio de retrieval</li>
+      <li>Contagem de feedback positivo/negativo</li>
+      <li>Chunks ajustados pelo sistema de aprendizagem</li>
+      <li>Top 10 queries com baixo score (gaps de conhecimento)</li>
+      <li>Queries flagged pendentes de revisão humana</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="stack">
+  <h2>9. Stack Tecnológico</h2>
+
+  <div class="grid3">
+    <div>
+      <h3>Core AI / ML</h3>
+      <div class="badge-row">
+        <span class="badge ai">Ollama</span>
+        <span class="badge ai">gemma2:2b</span>
+        <span class="badge ai">nomic-embed-text</span>
+        <span class="badge ai">ChromaDB</span>
+        <span class="badge ai">BM25Okapi (rank-bm25)</span>
+      </div>
+    </div>
+    <div>
+      <h3>Backend / API</h3>
+      <div class="badge-row">
+        <span class="badge py">FastAPI</span>
+        <span class="badge py">Uvicorn</span>
+        <span class="badge py">Pydantic</span>
+        <span class="badge py">APScheduler</span>
+      </div>
+    </div>
+    <div>
+      <h3>Frontend</h3>
+      <div class="badge-row">
+        <span class="badge py">Streamlit</span>
+        <span class="badge py">4 tabs (Chat, Analytics, ChromaDB, Settings)</span>
+      </div>
+    </div>
+    <div>
+      <h3>Web Scraping</h3>
+      <div class="badge-row">
+        <span class="badge py">requests</span>
+        <span class="badge py">BeautifulSoup4</span>
+      </div>
+    </div>
+    <div>
+      <h3>Persistência</h3>
+      <div class="badge-row">
+        <span class="badge db">SQLite ×4</span>
+        <span class="badge db">ChromaDB (vectores)</span>
+        <span class="badge db">JSON (raw scrape)</span>
+      </div>
+    </div>
+    <div>
+      <h3>Testes</h3>
+      <div class="badge-row">
+        <span class="badge py">pytest</span>
+        <span class="badge py">test_chunker</span>
+        <span class="badge py">test_prompts</span>
+        <span class="badge py">test_feedback_learner</span>
+        <span class="badge py">test_response_cache</span>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:1.5rem">Estrutura de Ficheiros</h3>
+  <div class="layer-stack" style="max-width:640px">
+    <div class="layer l1"><div class="name">app/ — Interfaces de utilizador</div><div class="desc">main_app.py (Streamlit 4 tabs), streamlit_app.py, chroma_browser.py, analytics_dashboard.py</div></div>
+    <div class="layer l2"><div class="name">src/api/ — REST API</div><div class="desc">main.py (FastAPI + rate limiting + CORS), routes.py (endpoints), schemas.py (Pydantic models)</div></div>
+    <div class="layer l2"><div class="name">src/generation/ — Geração de Respostas</div><div class="desc">enhanced_rag_chain.py, llm.py (Ollama wrapper), prompts.py (PT/EN + injection protection)</div></div>
+    <div class="layer l2"><div class="name">src/retrieval/ — Busca Híbrida</div><div class="desc">hybrid_retriever.py (RRF), query_expansion.py (expand + HyDE), vector_store.py (ChromaDB), retriever.py</div></div>
+    <div class="layer l2"><div class="name">src/ingestion/ — Processamento de Conteúdo</div><div class="desc">ingest.py (pipeline), chunker.py (smart chunking), embedder.py (nomic-embed-text)</div></div>
+    <div class="layer l2"><div class="name">src/feedback/ — Aprendizagem Automática</div><div class="desc">feedback_learner.py (cache inv + boost/penalize + flag + learn), store.py, models.py</div></div>
+    <div class="layer l2"><div class="name">src/analytics/ — Observabilidade</div><div class="desc">query_logger.py (SQLite logs), response_cache.py (SQLite cache TTL 24h)</div></div>
+    <div class="layer l3"><div class="name">scripts/ — Utilitários CLI</div><div class="desc">ingest_blogs.py, export_data.py, update_knowledge.py</div></div>
+    <div class="layer l3"><div class="name">tests/ — Testes Unitários</div><div class="desc">pytest com SQLite in-memory para isolamento de testes</div></div>
+    <div class="layer l3"><div class="name">data/ — Persistência</div><div class="desc">chroma_db/, *.db (SQLite ×4), reports/ (relatórios semanais)</div></div>
+  </div>
+</section>
+
+<footer style="padding:1.5rem 3rem; color:#4a5568; font-size:0.82rem; border-top:1px solid #1a1f2e">
+  NPChat — Near Partner RAG Chatbot · Python 3.12 · Ollama + ChromaDB · Gerado a 2026-05-19
+</footer>
+
+</body>
+</html>

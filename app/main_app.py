@@ -47,14 +47,19 @@ if "scheduler_started" not in st.session_state:
     st.session_state.scheduler_started = False
 
 _SETTINGS_FILE = Path(__file__).parent.parent / "data" / "app_settings.json"
+# Defaults: LEAN config (hybrid + reranking + generation = 1 LLM call per query).
+# Pre-retrieval LLM steps (expansion / HyDE / multi-query) are off by default —
+# on this single-slot ~12 tok/s server they each add ~3-12s for negligible recall
+# gain. Left as opt-in toggles for hard-recall queries. See
+# docs/latency_ablation_findings.md.
 _DEFAULT_SETTINGS = {
     "top_k": 5,
     "temperature": 0.7,
-    "use_expansion": True,
+    "use_expansion": False,
     "use_hybrid": True,
     "use_hyde": False,
     "use_reranking": True,
-    "use_multi_query": True,
+    "use_multi_query": False,
     "use_contextual_retrieval": False,
     "use_cache": True,
     "cache_ttl_hours": 24,
@@ -370,7 +375,7 @@ def render_chat_tab():
                 thinking_placeholder.empty()
                 st.error(f"Error: {str(e)}")
                 if "connection" in str(e).lower() or "refused" in str(e).lower():
-                    st.warning("Make sure LM Studio is running with the local server started (Developer tab → Start Server).")
+                    st.warning("LLM server not reachable. Run start_llm.ps1 to start llama-server.")
 
     # Sidebar for chat
     with st.sidebar:
@@ -570,6 +575,43 @@ def render_browser_tab():
                     st.text(r.get('text', ''))
 
 
+def _run_streaming(cmd: list, label: str = "Running") -> bool:
+    """
+    Run a subprocess and stream its stdout line-by-line into a Streamlit
+    text area. No timeout — returns True on success, False on failure.
+    Shows a live spinner and updates a single text element in place.
+    """
+    project_root = str(Path(__file__).parent.parent)
+    log_lines: list[str] = []
+    log_box = st.empty()
+
+    with st.spinner(f"{label}…"):
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                cwd=project_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            for line in proc.stdout:
+                log_lines.append(line.rstrip())
+                # Keep last 40 lines visible so the box doesn't grow forever
+                log_box.code("\n".join(log_lines[-40:]), language=None)
+            proc.wait()
+        except Exception as e:
+            st.error(f"{label} error: {e}")
+            return False
+
+    if proc.returncode == 0:
+        st.success(f"{label} complete!")
+        return True
+    else:
+        st.error(f"{label} failed (exit {proc.returncode}). See output above.")
+        return False
+
+
 def render_settings_tab():
     """Render the settings page."""
     st.header("⚙️ Settings")
@@ -704,77 +746,44 @@ def render_settings_tab():
                     st.error(f"Error: {e}")
 
     with col2:
-        st.markdown("**Ingest to KB**")
-        st.caption("Process and embed scraped content")
+        st.markdown("**Ingest New Content**")
+        st.caption("Only embed new/changed content (fast, incremental)")
         if st.button("📥 Ingest Content"):
-            with st.spinner("Ingesting..."):
-                try:
-                    ingest_cmd = [sys.executable, "scripts/ingest_blogs.py"]
-                    if st.session_state.settings.get("use_contextual_retrieval", False):
-                        ingest_cmd.append("--contextual")
-                    result = subprocess.run(
-                        ingest_cmd,
-                        cwd=str(Path(__file__).parent.parent),
-                        capture_output=True,
-                        text=True,
-                        timeout=600
-                    )
-                    if result.returncode == 0:
-                        st.success("Ingestion complete!")
-                        # Clear caches
-                        get_vector_store.clear()
-                        get_retriever.clear()
-                        st.text(result.stdout[-1000:] if len(result.stdout) > 1000 else result.stdout)
-                    else:
-                        st.error(f"Error: {result.stderr[:300]}")
-                except subprocess.TimeoutExpired:
-                    st.error("Ingestion timed out")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+            ingest_cmd = [sys.executable, "scripts/ingest_blogs.py", "--incremental"]
+            if st.session_state.settings.get("use_contextual_retrieval", False):
+                ingest_cmd.append("--contextual")
+            ok = _run_streaming(ingest_cmd, label="Ingesting")
+            if ok:
+                get_vector_store.clear()
+                get_retriever.clear()
 
     with col3:
         st.markdown("**Full Update**")
-        st.caption("Scrape + Ingest in one step")
+        st.caption("Scrape + incremental ingest in one step")
         if st.button("🔄 Full Update"):
-            with st.spinner("Running full update..."):
-                try:
-                    # Scrape
-                    st.text("Step 1/2: Scraping...")
-                    result1 = subprocess.run(
-                        [sys.executable, "scraper.py"],
-                        cwd=str(Path(__file__).parent.parent),
-                        capture_output=True,
-                        text=True,
-                        timeout=300
-                    )
+            st.markdown("**Step 1/2 — Scraping**")
+            ok = _run_streaming([sys.executable, "scraper.py"], label="Scraping")
+            if ok:
+                st.markdown("**Step 2/2 — Ingesting**")
+                ingest_cmd2 = [sys.executable, "scripts/ingest_blogs.py", "--incremental"]
+                if st.session_state.settings.get("use_contextual_retrieval", False):
+                    ingest_cmd2.append("--contextual")
+                ok2 = _run_streaming(ingest_cmd2, label="Ingesting")
+                if ok2:
+                    get_vector_store.clear()
+                    get_retriever.clear()
 
-                    if result1.returncode != 0:
-                        st.error(f"Scrape failed: {result1.stderr[:300]}")
-                    else:
-                        # Ingest
-                        st.text("Step 2/2: Ingesting...")
-                        ingest_cmd2 = [sys.executable, "scripts/ingest_blogs.py"]
-                        if st.session_state.settings.get("use_contextual_retrieval", False):
-                            ingest_cmd2.append("--contextual")
-                        result2 = subprocess.run(
-                            ingest_cmd2,
-                            cwd=str(Path(__file__).parent.parent),
-                            capture_output=True,
-                            text=True,
-                            timeout=600
-                        )
-
-                        if result2.returncode == 0:
-                            st.success("Full update complete!")
-                            get_vector_store.clear()
-                            get_retriever.clear()
-                        else:
-                            st.error(f"Ingest failed: {result2.stderr[:300]}")
-
-                except subprocess.TimeoutExpired:
-                    st.error("Operation timed out")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+    st.divider()
+    st.subheader("⚠️ Re-ingest All")
+    st.caption("Wipe the vector store and rebuild from scratch. Required after changing embedding model or toggling Contextual Retrieval / Parent-Child Chunking.")
+    if st.button("🗑️ Re-ingest All", type="secondary"):
+        reingest_cmd = [sys.executable, "scripts/ingest_blogs.py"]
+        if st.session_state.settings.get("use_contextual_retrieval", False):
+            reingest_cmd.append("--contextual")
+        ok = _run_streaming(reingest_cmd, label="Re-ingesting")
+        if ok:
+            get_vector_store.clear()
+            get_retriever.clear()
 
     st.divider()
 
@@ -802,29 +811,29 @@ def render_settings_tab():
 
     st.divider()
 
-    # LM Studio Status
-    st.subheader("🟣 LM Studio Status")
+    # Inference Status
+    st.subheader("⚙️ Inference Status")
 
     from src.config import config
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown(f"**Server URL:** `{config.lmstudio_base_url}`")
+        st.markdown(f"**LLM server:** `{config.llm_base_url}`")
         st.markdown(f"**LLM model:** `{config.llm_model}`")
-        st.markdown(f"**Embedding model:** `{config.embedding_model}`")
+        st.markdown(f"**Embedding model:** `{config.embedding_model}` *(in-process)*")
 
     with col2:
         try:
             from openai import OpenAI
-            client = OpenAI(base_url=config.lmstudio_base_url, api_key="lm-studio")
+            client = OpenAI(base_url=config.llm_base_url, api_key="not-needed")
             models = client.models.list()
             model_ids = [m.id for m in models.data]
-            st.success(f"✅ LM Studio connected — {len(model_ids)} model(s) loaded")
+            st.success(f"✅ LLM server connected — {len(model_ids)} model(s) loaded")
             if model_ids:
                 st.caption("Loaded: " + ", ".join(model_ids))
         except Exception as e:
-            st.error("❌ LM Studio not reachable")
-            st.caption("Start the server in LM Studio → Developer tab → Start Server (port 1234)")
+            st.error("❌ LLM server not reachable")
+            st.caption("Run start_llm.ps1 (or: llama-server.exe -m Qwen2.5-7B... --port 8080)")
 
     st.divider()
 

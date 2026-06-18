@@ -84,6 +84,6 @@ class SourceListResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Response model for health check."""
     status: str
-    ollama_connected: bool
+    llm_connected: bool
     vector_store_count: int
     timestamp: str

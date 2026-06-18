@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NPChat — Overview</title>
+  <style>
+    :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#222636;--border:#2e3347;--accent:#6c8aff;--accent2:#a78bfa;--green:#34d399;--yellow:#fbbf24;--red:#f87171;--orange:#fb923c;--cyan:#22d3ee;--text:#e2e8f0;--muted:#8892a4;--radius:10px;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;}
+    a{color:var(--accent);text-decoration:none;}
+    .page{max-width:1100px;margin:0 auto;padding:40px 24px 80px;}
+    header{text-align:center;padding:48px 0 36px;border-bottom:1px solid var(--border);margin-bottom:48px;}
+    header h1{font-size:2.4rem;font-weight:700;}header h1 span{color:var(--accent);}
+    header p{color:var(--muted);margin-top:10px;font-size:1.05rem;}
+    .badge{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 14px;font-size:0.8rem;color:var(--muted);margin:8px 4px 0;}
+    .badge.green{border-color:var(--green);color:var(--green);}.badge.blue{border-color:var(--accent);color:var(--accent);}.badge.purple{border-color:var(--accent2);color:var(--accent2);}.badge.orange{border-color:var(--orange);color:var(--orange);}.badge.cyan{border-color:var(--cyan);color:var(--cyan);}
+    h2{font-size:1.35rem;font-weight:600;color:var(--accent);margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+    h2::after{content:'';flex:1;height:1px;background:var(--border);}
+    h3{font-size:1rem;font-weight:600;margin-bottom:8px;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;}
+    .card+.card{margin-top:16px;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+    @media(max-width:720px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+    .flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin-bottom:8px;}
+    .flow-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:0.83rem;text-align:center;min-width:110px;}
+    .flow-box small{display:block;color:var(--muted);font-size:0.72rem;margin-top:2px;}
+    .flow-box.accent{border-color:var(--accent);color:var(--accent);}.flow-box.green{border-color:var(--green);color:var(--green);}.flow-box.purple{border-color:var(--accent2);color:var(--accent2);}.flow-box.orange{border-color:var(--orange);color:var(--orange);}.flow-box.cyan{border-color:var(--cyan);color:var(--cyan);}
+    .flow-arrow{color:var(--muted);font-size:1.2rem;padding:0 8px;}
+    .file-table{width:100%;border-collapse:collapse;font-size:0.88rem;}
+    .file-table th{text-align:left;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);padding:8px 12px 8px 0;}
+    .file-table td{padding:9px 12px 9px 0;border-bottom:1px solid var(--border);vertical-align:top;}
+    .file-table tr:last-child td{border-bottom:none;}
+    .file-table code{font-family:monospace;color:var(--accent);background:var(--surface2);border-radius:4px;padding:1px 6px;font-size:0.82rem;}
+    .pill{display:inline-block;border-radius:20px;padding:1px 10px;font-size:0.75rem;font-weight:600;border:1px solid;}
+    .pill.blue{color:var(--accent);border-color:var(--accent);}.pill.green{color:var(--green);border-color:var(--green);}.pill.purple{color:var(--accent2);border-color:var(--accent2);}.pill.orange{color:var(--orange);border-color:var(--orange);}.pill.cyan{color:var(--cyan);border-color:var(--cyan);}
+    .param-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:0.88rem;}
+    .param-grid .label{color:var(--muted);white-space:nowrap;}.param-grid .val{color:var(--text);font-family:monospace;}
+    .tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 9px;font-size:0.78rem;color:var(--muted);margin:3px 2px;}
+    .step-file{font-family:monospace;font-size:0.8rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;display:inline-block;margin-bottom:6px;color:var(--accent);}
+    .endpoint{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:10px;}
+    .method{display:inline-block;font-size:0.75rem;font-weight:700;border-radius:4px;padding:2px 8px;margin-right:8px;}
+    .method.get{background:#1a4731;color:var(--green);}.method.post{background:#1a2e4a;color:var(--accent);}
+    .endpoint-path{font-family:monospace;font-size:0.9rem;}
+    .endpoint-desc{color:var(--muted);font-size:0.85rem;margin-top:6px;}
+    section{margin-bottom:52px;}
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1><span>NP</span>Chat</h1>
+    <p>Production RAG chatbot with hybrid search, feedback learning, and local LLMs via Ollama</p>
+    <div>
+      <span class="badge blue">Python 3.12+</span>
+      <span class="badge purple">Ollama + ChromaDB</span>
+      <span class="badge green">FastAPI + Streamlit</span>
+      <span class="badge orange">BM25 + RRF</span>
+      <span class="badge cyan">LangChain</span>
+      <span class="badge">SQLite × 4</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>1. What this project does</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Purpose</h3>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:12px;">
+          RAG chatbot answering questions about Near Partner using entirely local infrastructure.
+          Scrapes nearpartner.com, chunks and embeds content, then uses hybrid semantic+BM25 retrieval
+          (Reciprocal Rank Fusion), optional HyDE query expansion, and caches responses.
+          Feedback from users automatically boosts/penalizes chunk scores.
+        </p>
+        <div>
+          <span class="tag">Hybrid search</span><span class="tag">HyDE</span>
+          <span class="tag">Query expansion</span><span class="tag">Response cache</span>
+          <span class="tag">Feedback learning</span><span class="tag">Analytics dashboard</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Core stack</h3>
+        <div class="param-grid">
+          <span class="label">LLM</span><span class="val">Ollama (gemma2:2b or mistral:7b)</span>
+          <span class="label">Embeddings</span><span class="val">nomic-embed-text via Ollama</span>
+          <span class="label">Vector DB</span><span class="val">ChromaDB ≥0.4</span>
+          <span class="label">Keyword</span><span class="val">rank-bm25 (BM25 + RRF)</span>
+          <span class="label">Backend</span><span class="val">FastAPI + Uvicorn</span>
+          <span class="label">Frontend</span><span class="val">Streamlit 4-tab app</span>
+          <span class="label">Chunk size</span><span class="val">1200 chars / 200 overlap</span>
+          <span class="label">Top-k</span><span class="val">3 chunks retrieved</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Full pipeline</h2>
+    <div class="card">
+      <div style="overflow-x:auto;"><div style="min-width:640px;">
+        <p style="color:var(--muted);font-size:0.82rem;margin-bottom:10px;">Ingestion (Monday 02:00 + manual)</p>
+        <div class="flow">
+          <div class="flow-box cyan"><strong>scraper.py</strong><small>nearpartner.com</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box"><strong>chunker.py</strong><small>1200 chars</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box purple"><strong>embedder.py</strong><small>nomic-embed-text</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box accent"><strong>ChromaDB</strong><small>vector store</small></div>
+          <div class="flow-arrow">+</div>
+          <div class="flow-box"><strong>BM25 index</strong><small>keyword store</small></div>
+        </div>
+        <p style="color:var(--muted);font-size:0.82rem;margin:16px 0 10px;">Query pipeline (per request)</p>
+        <div class="flow">
+          <div class="flow-box"><strong>User query</strong></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box cyan"><strong>Cache?</strong><small>SQLite TTL check</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box purple"><strong>HyDE + expand</strong><small>3 variants</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box accent"><strong>Hybrid search</strong><small>semantic + BM25</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box"><strong>RRF fusion</strong><small>re-rank top-k</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box green"><strong>Ollama LLM</strong><small>generate answer</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box orange"><strong>Cache + return</strong></div>
+        </div>
+        <p style="color:var(--muted);font-size:0.82rem;margin:16px 0 10px;">Feedback loop</p>
+        <div class="flow">
+          <div class="flow-box"><strong>User rates 👍/👎</strong></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box green"><strong>👍 boost +0.1</strong><small>keep cache</small></div>
+          <div class="flow-arrow">|</div>
+          <div class="flow-box red" style="border-color:var(--red);color:var(--red)"><strong>👎 penalize −0.15</strong><small>invalidate cache</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box accent"><strong>learning.db</strong><small>persist adjustments</small></div>
+        </div>
+      </div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. API endpoints</h2>
+    <div class="card">
+      <div class="endpoint">
+        <span class="method post">POST</span><span class="endpoint-path">/api/v1/chat</span>
+        <div class="endpoint-desc">Send message, returns answer with source chunks. Body: {message, top_k, temperature, conversation_history}</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span><span class="endpoint-path">/api/v1/feedback</span>
+        <div class="endpoint-desc">Submit 👍/👎 rating for a response. Triggers chunk score adjustment and optional cache invalidation.</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span><span class="endpoint-path">/api/v1/health</span>
+        <div class="endpoint-desc">Liveness check — confirms Ollama is reachable and ChromaDB collection exists.</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span><span class="endpoint-path">/api/v1/stats</span>
+        <div class="endpoint-desc">Query volume, cache hit rate, feedback summary, average confidence score.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. Scheduled jobs</h2>
+    <div class="grid-3">
+      <div class="card">
+        <div class="step-file">Monday 02:00</div>
+        <h3>Full re-ingest</h3>
+        <p style="color:var(--muted);font-size:0.88rem;">Scrape all nearpartner.com blog posts + 13 company pages → re-chunk → re-embed → update ChromaDB + BM25 index.</p>
+      </div>
+      <div class="card">
+        <div class="step-file">Daily 03:00</div>
+        <h3>Cache cleanup</h3>
+        <p style="color:var(--muted);font-size:0.88rem;">Remove expired entries from response_cache.db (FIFO eviction policy). Prevents stale answers from being served.</p>
+      </div>
+      <div class="card">
+        <div class="step-file">Sunday 23:00</div>
+        <h3>Analytics report</h3>
+        <p style="color:var(--muted);font-size:0.88rem;">Generates JSON report: query logs, feedback trends, knowledge gaps, cache efficiency. Saved to data/reports/.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. SQLite databases</h2>
+    <div class="card">
+      <table class="file-table">
+        <thead><tr><th>Database file</th><th>Contents</th><th>Usage</th></tr></thead>
+        <tbody>
+          <tr><td><code>data/query_log.db</code></td><td>All queries with retrieval scores and response times</td><td><span class="pill blue">analytics</span></td></tr>
+          <tr><td><code>data/response_cache.db</code></td><td>Cached responses keyed by query hash with TTL</td><td><span class="pill green">cache</span></td></tr>
+          <tr><td><code>data/feedback.db</code></td><td>User feedback records (query, response, rating)</td><td><span class="pill orange">feedback</span></td></tr>
+          <tr><td><code>data/learning.db</code></td><td>Chunk score adjustments (+0.1 / −0.15 history)</td><td><span class="pill purple">learning</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid var(--border);padding-top:20px;text-align:center;color:var(--muted);font-size:0.82rem;">
+    NPChat &nbsp;·&nbsp; FastAPI + Streamlit + Ollama + ChromaDB + BM25 &nbsp;·&nbsp; <a href="../index.html">← All Projects</a>
+  </footer>
+</div>
+</body>
+</html>

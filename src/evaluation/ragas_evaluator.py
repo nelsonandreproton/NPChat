@@ -7,7 +7,8 @@ Metrics (all reference-free — no ground-truth answers required):
   - ContextPrecisionWithoutReference: are the retrieved chunks ranked well for the question?
   - ContextRelevance:              are the retrieved chunks relevant to the question?
 
-All four use the local LM Studio LLM and embedding model so no OpenAI API key is needed.
+LLM scoring uses the llama.cpp server (OpenAI-compatible, port 8080).
+Embeddings are in-process via sentence-transformers (no embedding server needed).
 """
 import asyncio
 import json
@@ -19,6 +20,7 @@ from typing import List, Optional
 from openai import OpenAI
 
 from ..config import config
+from ..ingestion.embedder import Embedder
 
 
 # --------------------------------------------------------------------------- #
@@ -98,17 +100,46 @@ class EvalReport:
 # Evaluator                                                                    #
 # --------------------------------------------------------------------------- #
 
+class _InProcessEmbeddings:
+    """
+    Thin RAGAS-compatible wrapper around our in-process Embedder.
+
+    RAGAS's BaseRagasEmbeddings extends LangChain's Embeddings ABC, which
+    requires embed_documents() and embed_query(). We satisfy that interface
+    by delegating to the same Embedder used everywhere else in the app —
+    ensuring evaluation uses identical embedding behavior to ingest/retrieval.
+    """
+
+    def __init__(self, embedder: Embedder):
+        self._embedder = embedder
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self._embedder.embed_texts(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        return self._embedder.embed_query(text)
+
+    async def aembed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self.embed_documents(texts)
+
+    async def aembed_query(self, text: str) -> List[float]:
+        return self.embed_query(text)
+
+
 class RAGASEvaluator:
     """
-    Evaluates the RAG pipeline using four reference-free RAGAS metrics,
-    all scored by the local LM Studio instance.
+    Evaluates the RAG pipeline using four reference-free RAGAS metrics.
+    LLM scoring via llama.cpp (:8080); embeddings in-process.
     """
 
     def __init__(self):
-        self._client = OpenAI(
-            base_url=config.lmstudio_base_url,
-            api_key="lm-studio",
+        # LLM client → llama.cpp server
+        self._llm_client = OpenAI(
+            base_url=config.llm_base_url,
+            api_key="not-needed",
         )
+        # Embeddings → in-process (same Embedder as ingest/retrieval)
+        self._embedder = _InProcessEmbeddings(Embedder())
         self._llm = None
         self._emb = None
         self._metrics_ready = False
@@ -117,7 +148,6 @@ class RAGASEvaluator:
         if self._metrics_ready:
             return
         from ragas.llms import llm_factory
-        from ragas.embeddings import OpenAIEmbeddings as RagasOAIEmb
         from ragas.metrics.collections import (
             Faithfulness,
             AnswerRelevancy,
@@ -125,8 +155,8 @@ class RAGASEvaluator:
             ContextRelevance,
         )
 
-        self._llm = llm_factory(config.llm_model, client=self._client)
-        self._emb = RagasOAIEmb(model=config.embedding_model, client=self._client)
+        self._llm = llm_factory(config.llm_model, client=self._llm_client)
+        self._emb = self._embedder
 
         self._faithfulness = Faithfulness(llm=self._llm)
         self._answer_relevancy = AnswerRelevancy(llm=self._llm, embeddings=self._emb)
