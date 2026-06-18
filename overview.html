@@ -51,10 +51,10 @@
 <div class="page">
   <header>
     <h1><span>NP</span>Chat</h1>
-    <p>Production RAG chatbot with hybrid search, feedback learning, and local LLMs via Ollama</p>
+    <p>Production RAG chatbot with hybrid search, cross-encoder reranking, feedback learning, and a local LLM via llama.cpp</p>
     <div>
       <span class="badge blue">Python 3.12+</span>
-      <span class="badge purple">Ollama + ChromaDB</span>
+      <span class="badge purple">llama.cpp + ChromaDB</span>
       <span class="badge green">FastAPI + Streamlit</span>
       <span class="badge orange">BM25 + RRF</span>
       <span class="badge cyan">LangChain</span>
@@ -82,8 +82,9 @@
       <div class="card">
         <h3>Core stack</h3>
         <div class="param-grid">
-          <span class="label">LLM</span><span class="val">Ollama (gemma2:2b or mistral:7b)</span>
-          <span class="label">Embeddings</span><span class="val">nomic-embed-text via Ollama</span>
+          <span class="label">LLM</span><span class="val">llama.cpp — Qwen2.5-7B-Instruct-Q4_K_M (Vulkan)</span>
+          <span class="label">Embeddings</span><span class="val">mxbai-embed-large-v1 (1024-dim, in-process)</span>
+          <span class="label">Reranker</span><span class="val">FlashRank cross-encoder (CPU)</span>
           <span class="label">Vector DB</span><span class="val">ChromaDB ≥0.4</span>
           <span class="label">Keyword</span><span class="val">rank-bm25 (BM25 + RRF)</span>
           <span class="label">Backend</span><span class="val">FastAPI + Uvicorn</span>
@@ -105,7 +106,7 @@
           <div class="flow-arrow">→</div>
           <div class="flow-box"><strong>chunker.py</strong><small>1200 chars</small></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-box purple"><strong>embedder.py</strong><small>nomic-embed-text</small></div>
+          <div class="flow-box purple"><strong>embedder.py</strong><small>mxbai-embed-large</small></div>
           <div class="flow-arrow">→</div>
           <div class="flow-box accent"><strong>ChromaDB</strong><small>vector store</small></div>
           <div class="flow-arrow">+</div>
@@ -117,13 +118,13 @@
           <div class="flow-arrow">→</div>
           <div class="flow-box cyan"><strong>Cache?</strong><small>SQLite TTL check</small></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-box purple"><strong>HyDE + expand</strong><small>3 variants</small></div>
+          <div class="flow-box purple"><strong>HyDE / expand</strong><small>optional (off by default)</small></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-box accent"><strong>Hybrid search</strong><small>semantic + BM25</small></div>
+          <div class="flow-box accent"><strong>Hybrid search</strong><small>semantic + BM25 (RRF)</small></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-box"><strong>RRF fusion</strong><small>re-rank top-k</small></div>
+          <div class="flow-box"><strong>Rerank</strong><small>FlashRank cross-encoder</small></div>
           <div class="flow-arrow">→</div>
-          <div class="flow-box green"><strong>Ollama LLM</strong><small>generate answer</small></div>
+          <div class="flow-box green"><strong>llama.cpp LLM</strong><small>generate answer</small></div>
           <div class="flow-arrow">→</div>
           <div class="flow-box orange"><strong>Cache + return</strong></div>
         </div>
@@ -154,7 +155,7 @@
       </div>
       <div class="endpoint">
         <span class="method get">GET</span><span class="endpoint-path">/api/v1/health</span>
-        <div class="endpoint-desc">Liveness check — confirms Ollama is reachable and ChromaDB collection exists.</div>
+        <div class="endpoint-desc">Liveness check — confirms the llama.cpp server is reachable and the ChromaDB collection exists.</div>
       </div>
       <div class="endpoint">
         <span class="method get">GET</span><span class="endpoint-path">/api/v1/stats</span>
@@ -200,7 +201,7 @@
   </section>
 
   <footer style="border-top:1px solid var(--border);padding-top:20px;text-align:center;color:var(--muted);font-size:0.82rem;">
-    NPChat &nbsp;·&nbsp; FastAPI + Streamlit + Ollama + ChromaDB + BM25 &nbsp;·&nbsp; <a href="../index.html">← All Projects</a>
+    NPChat &nbsp;·&nbsp; FastAPI + Streamlit + llama.cpp + ChromaDB + BM25 &nbsp;·&nbsp; <a href="../index.html">← All Projects</a>
   </footer>
 </div>
 </body>
