@@ -32,10 +32,11 @@ wheels/
 *.swo
 *~
 
-# Data files (optional - uncomment if you don't want to track)
-# data/
-# *.db
-# *.json
+# Generated vector store (rebuilt by scripts/ingest_blogs.py)
+data/chroma_db/
+
+# Runtime SQLite state (accumulated locally; not source)
+data/*.db
 
 # Environment variables
 .env
