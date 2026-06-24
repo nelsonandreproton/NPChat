@@ -1,8 +1,33 @@
 """
 Central configuration for the Near Partner RAG Chatbot.
 """
+import os
 from pathlib import Path
 from dataclasses import dataclass
+
+from dotenv import load_dotenv
+
+load_dotenv()  # read .env if present (gitignored); env vars still win
+
+# --------------------------------------------------------------------------- #
+# LLM backend profiles                                                         #
+# --------------------------------------------------------------------------- #
+# Both backends speak the OpenAI-compatible API, so only base_url + model id
+# change between them. Switch with LLM_BACKEND=local|runpod in .env (or the
+# environment). Defaults below keep behavior identical to before (local).
+_LLM_BACKENDS = {
+    # Local llama.cpp server (start_llm.ps1). Model id = the --alias.
+    "local": {
+        "base_url": "http://localhost:8080/v1",
+        "model": "qwen2.5-7b-instruct",
+    },
+    # RunPod vLLM (OpenAI server). Model id = vLLM's served id, NOT the HF repo
+    # path — verify with: curl <base_url>/models  (the "id" field).
+    "runpod": {
+        "base_url": "https://wetcua2lntx03a-8000.proxy.runpod.net/v1",
+        "model": "qwen3-coder",
+    },
+}
 
 
 @dataclass
@@ -17,7 +42,9 @@ class Config:
     blog_posts_path: Path = base_dir / "nearpartner_blog_posts.json"
     company_pages_path: Path = base_dir / "nearpartner_company_pages.json"
 
-    # LLM server (llama.cpp, OpenAI-compatible API)
+    # LLM server (OpenAI-compatible API). Resolved from LLM_BACKEND in
+    # __post_init__; the defaults here are the "local" profile.
+    llm_backend: str = "local"
     llm_base_url: str = "http://localhost:8080/v1"
     llm_model: str = "qwen2.5-7b-instruct"        # must match --alias on llama-server
     # Embeddings run in-process via sentence-transformers (no server needed)
@@ -46,9 +73,29 @@ class Config:
     api_port: int = 8000
 
     def __post_init__(self):
-        """Ensure directories exist."""
+        """Resolve the LLM backend and ensure directories exist."""
+        self._resolve_llm_backend()
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.chroma_db_path.mkdir(parents=True, exist_ok=True)
+
+    def _resolve_llm_backend(self):
+        """
+        Pick the LLM backend from LLM_BACKEND (default 'local') and set
+        llm_base_url / llm_model accordingly. A pod id can change without a
+        code edit via the per-backend env overrides below.
+        """
+        backend = os.getenv("LLM_BACKEND", "local").strip().lower()
+        profile = _LLM_BACKENDS.get(backend)
+        if profile is None:
+            raise ValueError(
+                f"Unknown LLM_BACKEND={backend!r}. "
+                f"Expected one of: {', '.join(_LLM_BACKENDS)}"
+            )
+
+        prefix = backend.upper()  # LOCAL_* / RUNPOD_*
+        self.llm_backend = backend
+        self.llm_base_url = os.getenv(f"{prefix}_LLM_BASE_URL", profile["base_url"])
+        self.llm_model = os.getenv(f"{prefix}_LLM_MODEL", profile["model"])
 
 
 # Global config instance
