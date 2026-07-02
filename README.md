@@ -117,11 +117,12 @@ python scripts/ingest_blogs.py
 streamlit run app/main_app.py
 ```
 
-This opens a unified interface with 4 tabs:
+This opens a unified interface with 5 tabs:
 - **Chat**: Ask questions about Near Partner in Portuguese or English (answers mirror the question's language)
 - **Analytics**: View query logs, feedback, and performance metrics
 - **ChromaDB**: Browse and search the knowledge base
 - **Settings**: Configure ML features and manage the knowledge base (settings persist across refreshes)
+- **AI Act**: What was implemented for EU AI Act / GDPR compliance (transparency, privacy, human oversight, retention), with the full docs inline
 
 ### Run the API Server
 ```bash
