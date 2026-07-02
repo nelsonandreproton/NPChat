@@ -205,6 +205,12 @@ def render_chat_tab():
     """Render the chat interface."""
     st.header("💬 Chat")
     st.markdown("Ask me anything about Near Partner's services, technology insights, and expertise!")
+    st.caption(
+        "🤖 Está a conversar com um assistente de IA (LLM local, sem envio de dados para "
+        "serviços externos). As respostas podem conter imprecisões — verifique informação "
+        "crítica. Ver [PRIVACY.md](https://github.com/nelsonandreproton/NPChat/blob/main/PRIVACY.md) "
+        "para saber que dados são guardados."
+    )
 
     settings = st.session_state.settings
     cache = get_response_cache()
@@ -842,15 +848,96 @@ def render_settings_tab():
         st.json(st.session_state.settings)
 
 
+def _read_doc(relative_path: str) -> str:
+    """Read a compliance doc from the repo root for display in the AI Act tab."""
+    try:
+        path = Path(__file__).parent.parent / relative_path
+        return path.read_text(encoding="utf-8")
+    except Exception as e:
+        return f"_Não foi possível carregar `{relative_path}`: {e}_"
+
+
+def render_ai_act_tab():
+    """Explain what was implemented to comply with the EU AI Act / GDPR."""
+    from src.config import config
+
+    st.header("⚖️ EU AI Act")
+    st.markdown(
+        "Resumo do que foi implementado no NPChat para cumprir o "
+        "**Regulamento (UE) 2024/1689 (EU AI Act)** e o RGPD. "
+        "Os documentos completos estão linkados abaixo e vivem no repositório."
+    )
+
+    st.divider()
+    st.subheader("📋 Classificação de risco")
+    st.markdown(
+        "- **Risco limitado** — o NPChat não está no Anexo III (não decide sobre "
+        "emprego, crédito, educação, biometria ou serviços essenciais).\n"
+        "- Sujeito às **obrigações de transparência (Art. 50.º)** por interagir "
+        "diretamente com pessoas.\n"
+        "- A Near Partner é **implementadora (deployer)**, não fornecedora do modelo "
+        "de base (Qwen2.5-7B-Instruct, sem fine-tuning) — sem obrigações de "
+        "fornecedor de modelo de IA de finalidade geral (GPAI)."
+    )
+
+    st.subheader("🤖 Transparência (Art. 50.º)")
+    st.markdown(
+        "- Aviso visível no separador **Chat** a informar que as respostas são "
+        "geradas por IA e podem conter imprecisões.\n"
+        "- Aviso equivalente na descrição da API (`/docs`), para quem integra o "
+        "endpoint `/api/v1/chat` noutra aplicação."
+    )
+
+    st.subheader("🔒 Privacidade e dados (RGPD)")
+    st.markdown(
+        f"- **Sem contas nem autenticação** — acesso anónimo, sem perfilização "
+        "de indivíduos.\n"
+        "- **Tudo local**: LLM, embeddings e bases de dados correm na máquina; "
+        "nenhum dado sai para serviços externos (o backend RunPod, usado apenas "
+        "em teste, foi removido do código).\n"
+        f"- **Retenção automática**: logs de queries e feedback são apagados ao "
+        f"fim de **{config.log_retention_days} dias** por uma tarefa diária do "
+        "agendador (`run_log_retention_cleanup`, 03:30)."
+    )
+
+    st.subheader("👀 Supervisão humana (Art. 26.º)")
+    st.markdown(
+        "- Respostas de baixa confiança mostram um aviso ao utilizador.\n"
+        "- Queries com 2+ feedback negativo são automaticamente sinalizadas em "
+        "**Analytics > Learning > Flagged Queries** para revisão humana.\n"
+        "- Processo de revisão formalizado em `docs/human-oversight.md`."
+    )
+
+    st.subheader("📚 Literacia em IA (Art. 4.º)")
+    st.markdown(
+        "- `docs/ai-system-card.md` documenta finalidade, modelo, limitações "
+        "conhecidas (alucinação, idiomas suportados, injeção de prompt) e "
+        "âmbito de uso previsto/não previsto, para quem administra o sistema."
+    )
+
+    st.divider()
+    st.subheader("📄 Documentos completos")
+
+    with st.expander("PRIVACY.md — Política de Privacidade e Retenção de Dados"):
+        st.markdown(_read_doc("PRIVACY.md"))
+
+    with st.expander("docs/ai-system-card.md — Ficha do Sistema de IA"):
+        st.markdown(_read_doc("docs/ai-system-card.md"))
+
+    with st.expander("docs/human-oversight.md — Supervisão Humana"):
+        st.markdown(_read_doc("docs/human-oversight.md"))
+
+
 def main():
     st.title("🤖 Near Partner Chatbot")
 
     # Main tabs
-    tab_chat, tab_analytics, tab_browser, tab_settings = st.tabs([
+    tab_chat, tab_analytics, tab_browser, tab_settings, tab_ai_act = st.tabs([
         "💬 Chat",
         "📊 Analytics",
         "🗄️ ChromaDB",
-        "⚙️ Settings"
+        "⚙️ Settings",
+        "⚖️ AI Act"
     ])
 
     with tab_chat:
@@ -864,6 +951,9 @@ def main():
 
     with tab_settings:
         render_settings_tab()
+
+    with tab_ai_act:
+        render_ai_act_tab()
 
 
 if __name__ == "__main__":

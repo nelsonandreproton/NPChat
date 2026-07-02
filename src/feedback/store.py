@@ -234,3 +234,13 @@ class FeedbackStore:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM feedback")
             return cursor.fetchone()[0]
+
+    def delete_older_than(self, days: int) -> int:
+        """Delete feedback older than `days`. Returns the number of rows deleted."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "DELETE FROM feedback WHERE created_at < datetime('now', ?)",
+                (f"-{days} days",)
+            )
+            conn.commit()
+            return cursor.rowcount

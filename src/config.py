@@ -10,22 +10,15 @@ from dotenv import load_dotenv
 load_dotenv()  # read .env if present (gitignored); env vars still win
 
 # --------------------------------------------------------------------------- #
-# LLM backend profiles                                                         #
+# LLM backend                                                                  #
 # --------------------------------------------------------------------------- #
-# Both backends speak the OpenAI-compatible API, so only base_url + model id
-# change between them. Switch with LLM_BACKEND=local|runpod in .env (or the
-# environment). Defaults below keep behavior identical to before (local).
+# Local-only by design: no data leaves the machine (EU AI Act / GDPR posture —
+# see PRIVACY.md and docs/ai-system-card.md). Speaks the OpenAI-compatible API
+# against a local llama.cpp server (start_llm.ps1).
 _LLM_BACKENDS = {
-    # Local llama.cpp server (start_llm.ps1). Model id = the --alias.
     "local": {
         "base_url": "http://localhost:8080/v1",
         "model": "qwen2.5-7b-instruct",
-    },
-    # RunPod vLLM (OpenAI server). Model id = vLLM's served id, NOT the HF repo
-    # path — verify with: curl <base_url>/models  (the "id" field).
-    "runpod": {
-        "base_url": "https://wetcua2lntx03a-8000.proxy.runpod.net/v1",
-        "model": "qwen3-coder",
     },
 }
 
@@ -72,6 +65,11 @@ class Config:
     api_host: str = "127.0.0.1"
     api_port: int = 8000
 
+    # Data retention (GDPR / EU AI Act record-keeping — see PRIVACY.md).
+    # Query logs and feedback older than this are purged by the daily
+    # scheduler job (src/scheduler.py: run_log_retention_cleanup).
+    log_retention_days: int = 90
+
     def __post_init__(self):
         """Resolve the LLM backend and ensure directories exist."""
         self._resolve_llm_backend()
@@ -80,9 +78,8 @@ class Config:
 
     def _resolve_llm_backend(self):
         """
-        Pick the LLM backend from LLM_BACKEND (default 'local') and set
-        llm_base_url / llm_model accordingly. A pod id can change without a
-        code edit via the per-backend env overrides below.
+        Pick the LLM backend from LLM_BACKEND (default and only supported
+        value: 'local') and set llm_base_url / llm_model accordingly.
         """
         backend = os.getenv("LLM_BACKEND", "local").strip().lower()
         profile = _LLM_BACKENDS.get(backend)
@@ -92,7 +89,7 @@ class Config:
                 f"Expected one of: {', '.join(_LLM_BACKENDS)}"
             )
 
-        prefix = backend.upper()  # LOCAL_* / RUNPOD_*
+        prefix = backend.upper()  # LOCAL_*
         self.llm_backend = backend
         self.llm_base_url = os.getenv(f"{prefix}_LLM_BASE_URL", profile["base_url"])
         self.llm_model = os.getenv(f"{prefix}_LLM_MODEL", profile["model"])

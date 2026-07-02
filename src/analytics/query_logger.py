@@ -88,6 +88,16 @@ class QueryLogger:
             conn.commit()
             return cursor.lastrowid
 
+    def delete_older_than(self, days: int) -> int:
+        """Delete query logs older than `days`. Returns the number of rows deleted."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "DELETE FROM query_logs WHERE timestamp < datetime('now', ?)",
+                (f"-{days} days",)
+            )
+            conn.commit()
+            return cursor.rowcount
+
     def update_feedback(self, log_id: int, feedback: str):
         """Update feedback for a logged query."""
         with sqlite3.connect(self.db_path) as conn:
