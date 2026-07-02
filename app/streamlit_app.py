@@ -84,6 +84,10 @@ def save_feedback(query: str, response: str, feedback_type: FeedbackType, correc
 def main():
     st.title("🤖 Near Partner Chatbot")
     st.markdown("Ask me anything about Near Partner's services, technology insights, and expertise!")
+    st.caption(
+        "🤖 You are talking to an AI assistant (local LLM, no data sent to external services). "
+        "Answers may contain inaccuracies — verify critical information. See PRIVACY.md for what data is stored."
+    )
 
     # Sidebar with info
     with st.sidebar:

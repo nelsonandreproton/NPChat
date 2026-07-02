@@ -310,8 +310,25 @@ Disable in Settings or by not starting the scheduler.
 - **CORS**: Configured for localhost Streamlit. Update `src/api/main.py` for production domains.
 - **Rate Limiting**: 30 requests/minute per IP on chat endpoints (in-memory sliding window).
 - **Prompt Injection**: Input sanitized (max 1000 chars, null bytes removed) + system prompt instructs the model to ignore manipulation attempts.
-- **No Secrets**: Uses a local llama.cpp server and in-process embeddings — no API keys. If adding external APIs, use `.env` with `python-dotenv`.
+- **No Secrets**: Uses a local llama.cpp server and in-process embeddings — no API keys, no external AI API calls. LLM backend is local-only by design (no RunPod/cloud backend configured).
 - **SQL**: All queries use parameterized statements (no SQL injection).
+
+## EU AI Act & Privacy Compliance
+
+NPChat is built and operated with the EU AI Act (Regulation (EU) 2024/1689)
+and GDPR in mind:
+
+- **[`docs/ai-system-card.md`](docs/ai-system-card.md)** — system purpose,
+  risk classification (limited risk, not Annex III high-risk), model/data
+  details, and known limitations (Art. 4 & 50 technical documentation).
+- **[`docs/human-oversight.md`](docs/human-oversight.md)** — the human
+  review process for low-confidence answers and flagged queries (Art. 26).
+- **[`PRIVACY.md`](PRIVACY.md)** — what data is collected, where it's
+  stored (100% local, no external transfers), and the retention policy
+  (90 days, auto-purged daily — see `config.log_retention_days` and
+  `src/scheduler.py: run_log_retention_cleanup`).
+- **In-app AI disclosure**: the Chat tab tells users up front they're
+  talking to an AI system and that answers may be inaccurate (Art. 50).
 
 ## License
 

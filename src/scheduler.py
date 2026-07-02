@@ -100,6 +100,24 @@ def run_cache_cleanup():
         print(f"[Scheduler] Cache cleanup error: {e}")
 
 
+def run_log_retention_cleanup():
+    """Purge query logs and feedback older than config.log_retention_days (GDPR / AI Act record-keeping)."""
+    try:
+        from src.config import config
+        from src.analytics.query_logger import QueryLogger
+        from src.feedback.store import FeedbackStore
+
+        days = config.log_retention_days
+        deleted_queries = QueryLogger().delete_older_than(days)
+        deleted_feedback = FeedbackStore().delete_older_than(days)
+        print(
+            f"[Scheduler] Log retention cleanup: removed {deleted_queries} query logs "
+            f"and {deleted_feedback} feedback entries older than {days} days"
+        )
+    except Exception as e:
+        print(f"[Scheduler] Log retention cleanup error: {e}")
+
+
 def generate_weekly_report():
     """Generate a weekly knowledge gap report."""
     try:
@@ -155,6 +173,7 @@ def create_scheduler() -> "BackgroundScheduler":
     Schedule:
     - Monday 02:00: Full update (scrape + ingest)
     - Daily 03:00: Cache cleanup
+    - Daily 03:30: Log retention cleanup (GDPR / AI Act)
     - Sunday 23:00: Weekly report
     """
     if not APSCHEDULER_AVAILABLE:
@@ -179,6 +198,15 @@ def create_scheduler() -> "BackgroundScheduler":
         CronTrigger(hour=3, minute=0),
         id="daily_cache_cleanup",
         name="Daily cache cleanup",
+        replace_existing=True
+    )
+
+    # Daily log retention cleanup - 3:30 AM
+    scheduler.add_job(
+        run_log_retention_cleanup,
+        CronTrigger(hour=3, minute=30),
+        id="daily_log_retention_cleanup",
+        name="Daily log retention cleanup",
         replace_existing=True
     )
 

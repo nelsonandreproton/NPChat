@@ -205,6 +205,12 @@ def render_chat_tab():
     """Render the chat interface."""
     st.header("💬 Chat")
     st.markdown("Ask me anything about Near Partner's services, technology insights, and expertise!")
+    st.caption(
+        "🤖 Está a conversar com um assistente de IA (LLM local, sem envio de dados para "
+        "serviços externos). As respostas podem conter imprecisões — verifique informação "
+        "crítica. Ver [PRIVACY.md](https://github.com/nelsonandreproton/NPChat/blob/main/PRIVACY.md) "
+        "para saber que dados são guardados."
+    )
 
     settings = st.session_state.settings
     cache = get_response_cache()
