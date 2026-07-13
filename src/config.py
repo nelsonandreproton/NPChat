@@ -53,6 +53,7 @@ class Config:
     use_reranking: bool = True  # Cross-encoder reranking via FlashRank
     rerank_top_k_candidates: int = 20  # Candidates fetched before reranking
     use_multi_query: bool = True  # Generate query variants to improve recall
+    use_history_aware_retrieval: bool = True  # Condense follow-up questions before retrieval (multi-turn)
     use_contextual_retrieval: bool = False  # Prepend LLM context to each chunk before embedding (requires full re-ingest)
     use_parent_child_chunking: bool = False  # Embed paragraphs, serve parent chunks to LLM (requires full re-ingest)
 

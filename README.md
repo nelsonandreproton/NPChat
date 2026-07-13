@@ -19,6 +19,7 @@ A production-ready RAG (Retrieval-Augmented Generation) chatbot built with Pytho
 - **Contextual Retrieval**: Prepend LLM-generated context to each chunk before embedding (optional; requires re-ingest)
 - **Response Caching**: SQLite-based cache to avoid redundant LLM calls
 - **Multi-turn Conversation**: Maintains conversation history for follow-up questions
+- **History-Aware Retrieval**: Condenses follow-up questions (e.g. "e quanto custa isso?") into a standalone query using conversation history *before* retrieval, so pronoun/ellipsis-based follow-ups still find the right chunks (on by default; adds one LLM call, only on turns that have history)
 - **Language Mirroring**: Answers in the language of the question (Portuguese or English)
 - **Auto-Quality Evaluation**: LLM self-evaluates response confidence (0.0–1.0); warns on low-confidence answers
 - **RAGAS Evaluation Harness**: Reference-free pipeline scoring (faithfulness, answer relevancy, context precision/relevance)
@@ -205,6 +206,7 @@ The shipped **LEAN** default = hybrid search + reranking + generation = **1 LLM 
 | Cross-encoder reranking | **on** | Highest value; ~2s; removing it destroys top-k precision |
 | Response caching | **on** | Free; speeds up repeat queries |
 | Contextual retrieval | **on** | Ingest-time only — zero query-time cost |
+| History-aware retrieval | **on** | One extra LLM call, but only on follow-up turns (skipped on the first message of a conversation); without it, multi-turn follow-ups retrieve the wrong chunks |
 | HyDE | off | Saves ~8–12s; added variance, not recall |
 | Multi-query | off | Saves ~3–4s + 4× embed; no recall gain on tested queries |
 | Query expansion | off | One pre-retrieval LLM call for marginal recall |
@@ -219,6 +221,7 @@ Toggle any of these per-session in the **Settings** tab; changes persist to `dat
 | Query Expansion | Expand queries with related terms |
 | Hybrid Search | Combine semantic + BM25 keyword search |
 | Multi-Query | Generate query variants to improve recall |
+| History-Aware Retrieval | Rewrite follow-up questions into a standalone query (using conversation history) before retrieval |
 | HyDE | Use hypothetical document embedding |
 | Reranking | Cross-encoder reranking of top candidates |
 | Response Caching | Cache responses to reduce LLM calls |

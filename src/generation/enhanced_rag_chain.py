@@ -24,6 +24,7 @@ class EnhancedRAGResponse:
     chunk_ids: List[str]  # For feedback learning
     query: str
     expanded_query: Optional[str] = None
+    condensed_query: Optional[str] = None  # Standalone query used for retrieval, if rewritten from history
     timings: Dict[str, float] = field(default_factory=dict)
     log_id: Optional[int] = None
     confidence_score: Optional[float] = None  # Auto-quality score 0-1
@@ -46,6 +47,7 @@ class EnhancedRAGChain:
         use_logging: bool = True,
         use_reranking: Optional[bool] = None,
         use_multi_query: Optional[bool] = None,
+        use_history_aware_retrieval: Optional[bool] = None,
     ):
         self.llm = llm or OllamaLLM()
         self.prompts = PromptTemplates()
@@ -56,10 +58,16 @@ class EnhancedRAGChain:
         self.use_logging = use_logging
         self.use_reranking = use_reranking if use_reranking is not None else config.use_reranking
         self.use_multi_query = use_multi_query if use_multi_query is not None else config.use_multi_query
+        self.use_history_aware_retrieval = (
+            use_history_aware_retrieval if use_history_aware_retrieval is not None
+            else config.use_history_aware_retrieval
+        )
 
         # Initialize components
         self.hybrid_retriever = HybridRetriever() if use_hybrid_search else None
-        self.query_expander = QueryExpander() if use_query_expansion else None
+        # Always available: needed for history-aware query condensation even
+        # when query expansion (HyDE/multi-query) is disabled.
+        self.query_expander = QueryExpander()
         self.query_logger = QueryLogger() if use_logging else None
         self.feedback_learner = FeedbackLearner()
 
@@ -94,7 +102,9 @@ class EnhancedRAGChain:
             top_k: Number of chunks to retrieve
             temperature: LLM temperature
             use_hyde: Use Hypothetical Document Embedding
-            conversation_history: Previous conversation messages for multi-turn context
+            conversation_history: Previous conversation messages for multi-turn context.
+                When self.use_history_aware_retrieval is on, this is also used to
+                condense follow-up questions into a standalone query before retrieval.
             evaluate_confidence: Run auto-quality evaluation on the response
 
         Returns:
@@ -103,21 +113,36 @@ class EnhancedRAGChain:
         timings = {}
         total_start = time.time()
         expanded_query = None
+        condensed_query = None
 
         # Sanitize input
         question = sanitize_user_input(question)
 
+        # Step 0: Condense follow-up questions into a standalone query, so
+        # retrieval isn't blind to context from earlier turns (e.g. a
+        # question like "e quanto custa isso?" needs the prior topic to
+        # retrieve the right chunks). Only runs when there's history to
+        # condense from, so single-turn queries pay no extra LLM call.
+        retrieval_query = question
+        if self.use_history_aware_retrieval and conversation_history:
+            t0 = time.time()
+            retrieval_query = self.query_expander.condense_query(question, conversation_history)
+            timings["query_condensation"] = round(time.time() - t0, 2)
+            if retrieval_query != question:
+                condensed_query = retrieval_query
+                print(f"[EnhancedRAG] Condensed query: '{question}' -> '{retrieval_query}'")
+
         # Step 1: Query Expansion (optional)
-        search_query = question
+        search_query = retrieval_query
         if self.use_query_expansion and self.query_expander:
             print("[EnhancedRAG] Expanding query...")
             t0 = time.time()
 
             if use_hyde:
-                expanded_query = self.query_expander.generate_hyde(question)
+                expanded_query = self.query_expander.generate_hyde(retrieval_query)
                 search_query = expanded_query
             else:
-                expanded_query = self.query_expander.expand_query(question)
+                expanded_query = self.query_expander.expand_query(retrieval_query)
                 search_query = expanded_query
 
             timings["query_expansion"] = round(time.time() - t0, 2)
@@ -132,7 +157,7 @@ class EnhancedRAGChain:
 
         if self.use_multi_query and self.query_expander:
             # Generate query variants and union results by chunk ID
-            variants = self.query_expander.multi_query(question)
+            variants = self.query_expander.multi_query(retrieval_query)
             print(f"[EnhancedRAG] Multi-query: {len(variants)} variants")
             seen_ids: set = set()
             chunks = []
@@ -157,7 +182,7 @@ class EnhancedRAGChain:
             )
         elif self.use_hybrid_search and self.hybrid_retriever:
             chunks = self.hybrid_retriever.retrieve(
-                query=question,  # Original for embedding
+                query=retrieval_query,  # Standalone/condensed query for embedding
                 top_k=fetch_k,
                 expanded_query=expanded_query  # Expanded for BM25
             )
@@ -172,7 +197,7 @@ class EnhancedRAGChain:
         # Step 2b: Cross-encoder reranking (optional)
         if self.use_reranking and chunks:
             t0 = time.time()
-            chunks = self.reranker.rerank(question, chunks, top_k=top_k)
+            chunks = self.reranker.rerank(retrieval_query, chunks, top_k=top_k)
             timings["reranking"] = round(time.time() - t0, 2)
             print(f"[EnhancedRAG] Reranking took {timings['reranking']}s → {len(chunks)} chunks kept")
 
@@ -230,6 +255,7 @@ class EnhancedRAGChain:
             chunk_ids=chunk_ids,
             query=question,
             expanded_query=expanded_query,
+            condensed_query=condensed_query,
             timings=timings,
             log_id=log_id,
             confidence_score=confidence_score,
