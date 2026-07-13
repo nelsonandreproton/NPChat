@@ -60,6 +60,7 @@ _DEFAULT_SETTINGS = {
     "use_hyde": False,
     "use_reranking": True,
     "use_multi_query": False,
+    "use_history_aware_retrieval": True,
     "use_contextual_retrieval": False,
     "use_cache": True,
     "cache_ttl_hours": 24,
@@ -103,7 +104,13 @@ if not st.session_state.scheduler_started:
 
 # Cached resources
 @st.cache_resource
-def get_rag_chain(use_expansion: bool, use_hybrid: bool, use_reranking: bool = True, use_multi_query: bool = True):
+def get_rag_chain(
+    use_expansion: bool,
+    use_hybrid: bool,
+    use_reranking: bool = True,
+    use_multi_query: bool = True,
+    use_history_aware_retrieval: bool = True,
+):
     """Initialize enhanced RAG chain."""
     return EnhancedRAGChain(
         use_query_expansion=use_expansion,
@@ -111,6 +118,7 @@ def get_rag_chain(use_expansion: bool, use_hybrid: bool, use_reranking: bool = T
         use_logging=True,
         use_reranking=use_reranking,
         use_multi_query=use_multi_query,
+        use_history_aware_retrieval=use_history_aware_retrieval,
     )
 
 
@@ -294,6 +302,7 @@ def render_chat_tab():
                         use_hybrid=settings["use_hybrid"],
                         use_reranking=settings.get("use_reranking", True),
                         use_multi_query=settings.get("use_multi_query", True),
+                        use_history_aware_retrieval=settings.get("use_history_aware_retrieval", True),
                     )
 
                     result_container = {"result": None, "error": None, "done": False}
@@ -343,14 +352,20 @@ def render_chat_tab():
                     if getattr(result, 'low_confidence', False):
                         st.warning("⚠️ Nota: A confiança nesta resposta é baixa. Pode não haver informação suficiente na base de conhecimento.")
 
+                    # Show how a follow-up question was resolved using conversation history
+                    if getattr(result, 'condensed_query', None):
+                        st.caption(f"🔗 Pergunta interpretada com contexto: *{result.condensed_query}*")
+
                     if hasattr(result, 'timings') and result.timings:
                         t = result.timings
+                        condense_str = f" | Condensação: {t['query_condensation']}s" if "query_condensation" in t else ""
                         rerank_str = f" | Rerank: {t['reranking']}s" if "reranking" in t else ""
                         confidence_str = ""
                         if settings.get("show_confidence") and result.confidence_score is not None:
                             confidence_str = f" | Confiança: {result.confidence_score:.0%}"
                         st.caption(
                             f"⏱️ Retrieval: {t.get('retrieval', 0)}s"
+                            f"{condense_str}"
                             f"{rerank_str} | "
                             f"LLM: {t.get('llm_generation', 0)}s | "
                             f"Total: {t.get('total', elapsed_total)}s"
@@ -646,6 +661,14 @@ def render_settings_tab():
             help="Generate 3 query variants and union results before reranking (+recall, ~1s overhead)"
         )
 
+        use_history_aware_retrieval = st.toggle(
+            "History-Aware Retrieval",
+            value=st.session_state.settings.get("use_history_aware_retrieval", True),
+            help="Rewrite follow-up questions (e.g. \"e quanto custa isso?\") into a standalone "
+                 "question using conversation history before retrieval, so follow-ups find the right "
+                 "chunks. Adds one LLM call, but only on turns that have history."
+        )
+
         use_contextual_retrieval = st.toggle(
             "Contextual Retrieval (ingest)",
             value=st.session_state.settings.get("use_contextual_retrieval", False),
@@ -711,6 +734,7 @@ def render_settings_tab():
             "use_hyde": use_hyde,
             "use_reranking": use_reranking,
             "use_multi_query": use_multi_query,
+            "use_history_aware_retrieval": use_history_aware_retrieval,
             "use_contextual_retrieval": use_contextual_retrieval,
             "use_cache": use_cache,
             "cache_ttl_hours": cache_ttl,
